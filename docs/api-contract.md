@@ -54,10 +54,11 @@ to `[REDACTED]`; exports are read-only and never authoritative.
 
 ## Known limitations
 
-- **EMM-103:** resubmitting identical content into the *same* batch with a
-  *different* idempotency key is not yet idempotent and currently surfaces as
-  `500 internal_error`. The contract documents the supported behavior
-  (resubmit with the original key). Tracked separately.
+- Resubmitting identical content into the *same* batch is idempotent for any
+  idempotency key: it returns the original `raw_record_id` with
+  `duplicate_submission: true` and writes no new raw record, counter, or audit
+  event. Identical content in a *different* batch links the same raw record to
+  that batch without duplicating it.
 - Unversioned API paths are an alias, not a supported version.
 - Write operations (source registration, batch creation, record ingestion) are
   authenticated and source-scoped but do not require a specific role in this

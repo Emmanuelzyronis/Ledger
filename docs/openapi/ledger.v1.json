@@ -388,7 +388,7 @@
           "Ingestion"
         ],
         "summary": "Ingest one raw record",
-        "description": "Accepts one raw source record into a batch. `idempotency_key` makes a resubmission of identical content return the original result with `duplicate_submission: true` instead of creating a new raw record. A syntactically valid but semantically invalid record is preserved as raw evidence and reported with `status: INVALID`. Known limitation (EMM-103): resubmitting identical content into the *same* batch with a *different* idempotency key is not yet idempotent and surfaces as `500 internal_error`; resubmit with the original key, or target a different batch.",
+        "description": "Accepts one raw source record into a batch. Resubmitting identical content returns the original result with `duplicate_submission: true` instead of creating a new raw record, whether or not the idempotency key is reused; identical content targeted at a different batch links the same raw record to that batch. A syntactically valid but semantically invalid record is preserved as raw evidence and reported with `status: INVALID`.",
         "parameters": [
           {
             "$ref": "#/components/parameters/CorrelationId"

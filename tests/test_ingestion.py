@@ -60,6 +60,37 @@ class IngestionTests(unittest.TestCase):
         self.assertEqual(first.raw_record_id, retry.raw_record_id)
         self.assertEqual(self.db.batches.get(batch.batch_id).counters.received_count, 1)
 
+    def test_identical_content_with_new_key_in_same_batch_is_duplicate(self):
+        batch = self.ingestion.create_batch("a", "one", "source_a.v1", batch_id="ba", received_at=NOW)
+        payload = {"record_id": "A-1", "amount": "10.00"}
+        first = self.ingestion.ingest(batch.batch_id, payload, idempotency_key="request-1", accepted_at=NOW)
+        second = self.ingestion.ingest(batch.batch_id, payload, idempotency_key="request-2", accepted_at=NOW)
+        third = self.ingestion.ingest(batch.batch_id, payload, idempotency_key="request-3", accepted_at=NOW)
+        for result in (second, third):
+            self.assertTrue(result.duplicate_submission)
+            self.assertEqual(result.raw_record_id, first.raw_record_id)
+            self.assertEqual(result.status, "ACCEPTED")
+        self.assertEqual(self.count("raw_records"), 1)
+        self.assertEqual(self.count("raw_record_batches"), 1)
+        self.assertEqual(self.db.batches.get(batch.batch_id).counters.received_count, 1)
+        self.assertEqual(self.count("audit_events", "event_type = 'RECORD_INGESTED'"), 1)
+        self.assertEqual(self.count("audit_events", "event_type = 'SUBMISSION_DUPLICATE'"), 1)
+
+    def test_repeated_replay_stays_idempotent_past_the_first_duplicate(self):
+        batch = self.ingestion.create_batch("a", "one", "source_a.v1", batch_id="ba", received_at=NOW)
+        payload = {"record_id": "A-1", "amount": "10.00"}
+        first = self.ingestion.ingest(batch.batch_id, payload, idempotency_key="request-1", accepted_at=NOW)
+        replays = [self.ingestion.ingest(batch.batch_id, payload, idempotency_key="request-1", accepted_at=NOW) for _ in range(4)]
+        self.assertTrue(all(replay.duplicate_submission for replay in replays))
+        self.assertEqual({replay.raw_record_id for replay in replays}, {first.raw_record_id})
+        self.assertEqual(self.count("raw_records"), 1)
+        self.assertEqual(self.count("audit_events", "event_type = 'SUBMISSION_DUPLICATE'"), 1)
+        self.assertEqual(self.db.batches.get(batch.batch_id).counters.received_count, 1)
+
+    def count(self, table: str, where: str | None = None) -> int:
+        query = f"SELECT COUNT(*) FROM {table}" + (f" WHERE {where}" if where else "")
+        return self.db.connection.execute(query).fetchone()[0]
+
     def test_canonical_equivalent_payloads_replay_without_mutating_first_evidence(self):
         batch = self.ingestion.create_batch("a", "one", "source_a.v1", batch_id="ba", received_at=NOW)
         first_payload = {"record_id": "A-1", "description": "caf\u0065\u0301\r\n", "amount": "1"}

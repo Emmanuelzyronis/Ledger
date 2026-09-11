@@ -94,6 +94,13 @@ class RawIngestion:
         else:
             fingerprint = content_fingerprint(payload)
             raw_id = raw_identity(batch.source_id, batch.schema_version, fingerprint)
+            # Identical content already accepted into this same batch is a
+            # duplicate submission regardless of the idempotency key. It must
+            # not create a second raw record, increment batch counters, or add
+            # another audit event.
+            linked = self.database.raw_records.find_linked(raw_id, batch.batch_id)
+            if linked is not None and canonical_json(linked.payload) == canonical_json(payload):
+                return self._duplicate_submission(batch, linked, fingerprint)
             source_key = "record_id" if batch.schema_version == "source_a.v1" else "id"
             source_record_id = payload.get(source_key)
             if not isinstance(source_record_id, str) or not source_record_id.strip():
@@ -118,6 +125,26 @@ class RawIngestion:
             if raw_id:
                 self._audit(batch, AuditEventType.RECORD_INVALID if invalid_reason else AuditEventType.RECORD_INGESTED, raw_id)
         self._emit("ledger.ingestion.record_invalid" if invalid_reason else "ledger.ingestion.record_accepted", batch, raw_id)
+        return result
+
+    def _duplicate_submission(self, batch: Batch, existing: RawRecord, fingerprint: str) -> IngestionResult:
+        """Record and return an idempotent duplicate of content already in the batch.
+
+        No submission row is written for the new idempotency key: the result is
+        derived deterministically from the linked raw record, so any later call
+        with that key reaches the same outcome without extra state.
+        """
+        result = IngestionResult(
+            batch.batch_id,
+            existing.raw_record_id,
+            "INVALID" if existing.invalid_reason else "ACCEPTED",
+            fingerprint,
+            existing.invalid_reason,
+            True,
+        )
+        with self.database.transaction():
+            self._audit(batch, AuditEventType.SUBMISSION_DUPLICATE, existing.raw_record_id)
+        self._emit("ledger.ingestion.submission_duplicate", batch, existing.raw_record_id)
         return result
 
     def ingest_batch(self, batch_id: str, payloads: Sequence[Mapping[str, Any] | Any], *, idempotency_prefix: str | None = None) -> list[IngestionResult]:

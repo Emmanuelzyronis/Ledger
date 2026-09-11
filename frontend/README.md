@@ -174,8 +174,6 @@ npx vercel deploy --prod --yes
 ## Not done in this pass
 
 - Playwright/Remotion demo capture — explicitly out of scope.
-- EMM-103 (same-batch idempotency defect, re-confirmed open) is a service-side
-  issue and is not touched here; the contract documents it as a known limitation.
 - No processing trigger exists, so the dashboard cannot advance a batch from
   `RECEIVED` to reconciliation. Adding one is an API/architecture decision, not
   a frontend decision; see the note in the `/ingest` screen. Tracked as EMM-110.

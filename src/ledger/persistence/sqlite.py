@@ -538,6 +538,18 @@ class RawRecordRepository(_Repository):
             (raw_record_id, batch_id),
         ))
 
+    def find_linked(self, raw_record_id: str, batch_id: str) -> RawRecord | None:
+        """Return the raw record only if it is already associated with the batch.
+
+        Used by ingestion to detect a resubmission whose content was already
+        accepted into this batch under a different idempotency key.
+        """
+        row = self.connection.execute(
+            "SELECT raw_record_id FROM raw_record_batches WHERE raw_record_id = ? AND batch_id = ?",
+            (raw_record_id, batch_id),
+        ).fetchone()
+        return None if row is None else self.get(raw_record_id)
+
     def save(self, record: RawRecord) -> RawRecord:
         def operation() -> RawRecord:
             existing = self.connection.execute(
@@ -923,11 +935,14 @@ class AuditEventRepository(_Repository):
         def operation() -> AuditEvent:
             existing = self.connection.execute("SELECT * FROM audit_events WHERE event_id = ?", (event.event_id,)).fetchone()
             if existing is not None:
+                # `sequence` is assigned by this store on insert, so the caller's
+                # value is advisory and must not participate in event identity:
+                # comparing it makes replaying an already-appended event fail as
+                # a false collision whenever it was not the entity's first event.
                 same_event = (
                     existing["entity_type"] == event.entity_type
                     and existing["entity_id"] == event.entity_id
                     and existing["event_type"] == event.event_type.value
-                    and existing["sequence"] == event.sequence
                     and existing["stage_version"] == event.stage_version
                     and existing["metadata_json"] == _json(event.metadata)
                     and existing["previous_state"] == event.previous_state
