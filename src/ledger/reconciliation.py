@@ -35,10 +35,25 @@ class ReconciliationService:
         evaluated_at: datetime | None = None,
     ) -> Reconciliation:
         timestamp = (evaluated_at or datetime.now(timezone.utc)).astimezone(timezone.utc)
-        rec_id = "reconciliation:" + hashlib.sha256(canonical_json([source_a_record_id, source_b_record_id, raw_record_id, outcome.value, rule_version])).hexdigest()
-        reconciliation = Reconciliation(rec_id, batch_id, source_a_record_id, source_b_record_id, 1, rule_version,
-                                        {**evidence, "outcome": outcome.value, "evaluated_at": timestamp.isoformat()},
-                                        ReconciliationState(outcome.value), outcome, raw_record_id=raw_record_id)
+        existing, supersedes = self._resolve_version(
+            source_a_record_id, source_b_record_id, raw_record_id, outcome, rule_version)
+        if existing is not None:
+            return existing
+        version = supersedes.reconciliation_version + 1 if supersedes is not None else 1
+        identity = [source_a_record_id, source_b_record_id, raw_record_id, outcome.value, rule_version,
+                    supersedes.reconciliation_id if supersedes is not None else None]
+        rec_id = "reconciliation:" + hashlib.sha256(canonical_json(identity)).hexdigest()
+        decision_evidence = {**evidence, "outcome": outcome.value, "evaluated_at": timestamp.isoformat()}
+        supersedes_reconciliation_id = None
+        if supersedes is not None:
+            supersedes_reconciliation_id = supersedes.reconciliation_id
+            decision_evidence["supersedes_reconciliation_id"] = supersedes.reconciliation_id
+            decision_evidence["superseded_scope"] = sorted(
+                item for item in (supersedes.source_a_record_id, supersedes.source_b_record_id) if item)
+        reconciliation = Reconciliation(rec_id, batch_id, source_a_record_id, source_b_record_id, version, rule_version,
+                                        decision_evidence,
+                                        ReconciliationState(outcome.value), outcome, supersedes_reconciliation_id,
+                                        raw_record_id=raw_record_id)
         event_type = AuditEventType.DUPLICATE_DETECTED if outcome is ReconciliationOutcome.DUPLICATE else AuditEventType.MATCH_EVALUATED
         event_id = "audit:" + hashlib.sha256(canonical_json([rec_id, event_type.value])).hexdigest()
         event = AuditEvent(event_id, "reconciliation", rec_id, event_type, "system", timestamp, 1,

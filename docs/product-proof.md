@@ -93,9 +93,11 @@ same transaction.
   Resubmitting an accepted payload returns `SUBMISSION_DUPLICATE` with no new
   raw row and a `SUBMISSION_DUPLICATE` audit event.
 - Late arrival: `B-998` (the $500 counterpart for A003) is accepted after the
-  first evaluation; re-evaluation adds one MATCHED decision for A003/B-998
-  while the original UNMATCHED_A reconciliation row remains byte-for-byte
-  intact.
+  first evaluation; re-evaluation adds one MATCHED decision for A003/B-998 at
+  `reconciliation_version` 2 whose `supersedes_reconciliation_id` links to the
+  original UNMATCHED_A version. The original row remains byte-for-byte intact
+  and is excluded from `current_state`; replaying the evaluation adds no row.
+  This is the LA-1 rule in `Architecture.md` §28.1.
 - Immutability: direct `UPDATE` of an accepted raw payload is rejected by
   persistence, and the row remains intact; no authoritative row was mutated or
   deleted by replay, resolution, or late arrival.
@@ -136,15 +138,15 @@ description values.
 | L-INV-007 no automatic ambiguous match | A004/B994/B995 AMBIGUOUS with candidate sets preserved; automatic resolution requires system actor and rule_version |
 | L-INV-008 audit preservation | audit stage coverage and RESOLUTION_APPLIED lineage; SUBMISSION_DUPLICATE events |
 | L-INV-009 1:1 enforcement | DUPLICATE conflict components with no winner; all matches are 1:1 |
-| L-INV-010 historical preservation | correction and late-arrival scenarios preserve prior rows byte-for-byte |
+| L-INV-010 historical preservation | correction and late-arrival scenarios preserve prior rows byte-for-byte; the late-arrival version 2 links to version 1 and both are retrievable |
 | L-INV-011 state-machine validity | resolution transitions follow the authorized state machine (RESOLVED v2 supersession, DEFERRED, REJECTED, OPEN); illegal transitions are rejected by the existing domain/persistence tests |
 | L-INV-012 source identity isolation | cross-source matching only; API source scoping enforced |
 
 ## Verification results
 
-- `pytest -q`: 114 passed (96 Layer 1-14 tests plus 18 Layer 15 product-proof
-  tests).
-- `make check`: 114 passed.
+- `pytest -q`: 117 passed (96 Layer 1-14 tests plus 21 product-proof / late-arrival
+  regression tests).
+- `make check`: 117 passed.
 - `python3 -m compileall -q src tests benchmarks product_proof`: clean.
 - `git diff --check`: clean.
 - The product-proof suite is deterministic: two full runs produce the same
@@ -172,13 +174,15 @@ was required.
   versions, but superseded canonical versions remain part of the candidate and
   matching graph. Re-evaluation therefore adds new decision rows and never
   mutates old ones; the correction scenario asserts exactly this observed
-  behavior. Architecture sections 27/47 describe correction chains at the
-  raw/canonical/reconciliation level; the implemented supersession granularity
-  is raw-level plus immutable decision history, and is documented rather than
-  redesigned by this layer.
-- Late arrivals add new decision rows for the newly eligible pair while prior
-  decisions stay immutable; they do not create superseding reconciliation
-  versions (reconciliation version chaining is exercised by resolution).
+  behavior. `Architecture.md` §27 defines correction lineage at the
+  raw/canonical level, and §28.1 (LA-1) defines the single reconciliation-level
+  supersession rule. Excluding superseded canonical versions from candidate
+  generation is a tracked, open design decision (see the project backlog), not
+  an implied part of LA-1.
+- Late arrivals are governed by LA-1 (`Architecture.md` §28.1): a late-arriving
+  counterpart extends a previously decided scope, so the new decision supersedes
+  the prior singleton version and increments `reconciliation_version`. Prior
+  versions stay immutable; `current_state` is the latest non-superseded version.
 - Batch counters track ingestion/validation accounting; reconciliation
   outcomes are authoritative on the reconciliations table and are verified
   against API reports there.

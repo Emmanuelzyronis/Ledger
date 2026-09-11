@@ -36,6 +36,54 @@ class ReconciliationTests(unittest.TestCase):
         self.assertIsNone(first.source_a_record_id)
         self.assertEqual(self.db.connection.execute("SELECT COUNT(*) FROM reconciliations").fetchone()[0], 1)
 
+    def test_late_arrival_creates_linked_superseding_version(self):
+        service = ReconciliationService(self.db)
+        original = service.persist_decision(batch_id="batch", source_a_record_id="can-a",
+                                            outcome=ReconciliationOutcome.UNMATCHED_A,
+                                            evidence={}, evaluated_at=NOW)
+        self.assertEqual(original.reconciliation_version, 1)
+        self.assertIsNone(original.supersedes_reconciliation_id)
+        late = service.persist_decision(batch_id="batch", source_a_record_id="can-a",
+                                        source_b_record_id="can-b",
+                                        outcome=ReconciliationOutcome.MATCHED, evidence={}, evaluated_at=NOW)
+        self.assertEqual(late.reconciliation_version, 2)
+        self.assertEqual(late.supersedes_reconciliation_id, original.reconciliation_id)
+        self.assertNotEqual(late.reconciliation_id, original.reconciliation_id)
+        # Replaying the same content returns the existing version, not a new one.
+        self.assertEqual(service.persist_decision(batch_id="batch", source_a_record_id="can-a",
+                                                  source_b_record_id="can-b",
+                                                  outcome=ReconciliationOutcome.MATCHED,
+                                                  evidence={}, evaluated_at=NOW), late)
+        # The superseded version is preserved and no longer current.
+        self.assertEqual(self.db.reconciliations.get(original.reconciliation_id), original)
+        current_ids = {row.reconciliation_id for row in self.db.reconciliations.list_current()}
+        self.assertIn(late.reconciliation_id, current_ids)
+        self.assertNotIn(original.reconciliation_id, current_ids)
+        self.assertEqual(self.db.connection.execute("SELECT COUNT(*) FROM reconciliations").fetchone()[0], 2)
+
+    def test_unrelated_scope_does_not_supersede(self):
+        # A correction-like change of participant must not supersede an
+        # unrelated existing decision: {can-a, can-b} is not a subset of
+        # {can-c, can-b}.
+        service = ReconciliationService(self.db)
+        pair = service.persist_decision(batch_id="batch", source_a_record_id="can-a",
+                                        source_b_record_id="can-b",
+                                        outcome=ReconciliationOutcome.MATCHED, evidence={}, evaluated_at=NOW)
+        other = service.persist_decision(batch_id="batch", source_a_record_id="can-c",
+                                         source_b_record_id="can-b",
+                                         outcome=ReconciliationOutcome.UNMATCHED_A, evidence={}, evaluated_at=NOW)
+        self.assertEqual(other.reconciliation_version, 1)
+        self.assertIsNone(other.supersedes_reconciliation_id)
+        self.assertEqual(pair.reconciliation_version, 1)
+        self.assertIsNone(pair.supersedes_reconciliation_id)
+        self.assertEqual(self.db.connection.execute("SELECT COUNT(*) FROM reconciliations").fetchone()[0], 2)
+
+    def test_invalid_decisions_do_not_supersede_each_other(self):
+        service = ReconciliationService(self.db)
+        first = service.reconcile_invalid("raw")
+        self.assertEqual(first.reconciliation_version, 1)
+        self.assertIsNone(first.supersedes_reconciliation_id)
+
     def test_mismatch_and_ambiguity_create_discrepancy(self):
         service = ReconciliationService(self.db)
         for outcome, counterpart in ((ReconciliationOutcome.MISMATCHED, "can-b"), (ReconciliationOutcome.AMBIGUOUS, "can-c")):

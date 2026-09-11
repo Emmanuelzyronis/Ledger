@@ -30,7 +30,7 @@
   },
   "environment": {
     "machine": "x86_64",
-    "pid": 637177,
+    "pid": 639896,
     "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
     "python": "3.12.3 (main, Jul 15 2026, 23:46:41) [GCC 13.3.0]",
     "sqlite": "3.45.1"
@@ -51,51 +51,51 @@
         "median": 1.0,
         "min": 1
       },
-      "correctness_signature": "c45d4c40ad0453e76f68d3a39781c1d8a4eed7d622c9044c01075ad4548ac55f",
-      "peak_memory_bytes": 1362551,
+      "correctness_signature": "40e85a6a08840d78af376d8b88984f91f53f7f1a3dd789ab4eb48cc27f092357",
+      "peak_memory_bytes": 1360960,
       "records_per_source": 128,
       "records_total": 256,
       "resolution_discrepancies": 16,
       "stages": {
         "candidate_generation": {
-          "median_seconds": 0.04733585799112916,
-          "p95_seconds": 0.047382969001773745,
-          "throughput_records_per_second": 5408.162244528766
+          "median_seconds": 0.04681549800443463,
+          "p95_seconds": 0.046868067991454154,
+          "throughput_records_per_second": 5468.274629391964
         },
         "identity": {
-          "median_seconds": 0.008720682002604008,
-          "p95_seconds": 0.008749084983719513,
-          "throughput_records_per_second": 29355.50223291688
+          "median_seconds": 0.008617306011728942,
+          "p95_seconds": 0.008700500999111682,
+          "throughput_records_per_second": 29707.66033509319
         },
         "ingestion": {
-          "median_seconds": 0.09168282398604788,
-          "p95_seconds": 0.09192282799631357,
-          "throughput_records_per_second": 2792.2351087152115
+          "median_seconds": 0.0913617750047706,
+          "p95_seconds": 0.09215002701967023,
+          "throughput_records_per_second": 2802.0471360876313
         },
         "matching": {
-          "median_seconds": 0.027354163234122097,
-          "p95_seconds": 0.027387795911636204,
-          "throughput_records_per_second": 9358.721661814929
+          "median_seconds": 0.0273405511979945,
+          "p95_seconds": 0.027575534128118306,
+          "throughput_records_per_second": 9363.381087166168
         },
         "normalization": {
-          "median_seconds": 0.07534828397911042,
-          "p95_seconds": 0.07573417798266746,
-          "throughput_records_per_second": 3397.5558099103296
+          "median_seconds": 0.0745165319822263,
+          "p95_seconds": 0.07488481898326427,
+          "throughput_records_per_second": 3435.47925795931
         },
         "reconciliation": {
-          "median_seconds": 0.03489930008072406,
-          "p95_seconds": 0.03492990793893114,
-          "throughput_records_per_second": 7335.390664221273
+          "median_seconds": 0.037854739057365805,
+          "p95_seconds": 0.038286606868496165,
+          "throughput_records_per_second": 6762.693558976926
         },
         "resolution": {
-          "median_seconds": 0.0009215239842887968,
-          "p95_seconds": 0.0009283749968744814,
-          "throughput_records_per_second": 277800.6914248388
+          "median_seconds": 0.0009182600188069046,
+          "p95_seconds": 0.0009724409901537001,
+          "throughput_records_per_second": 278788.13708193554
         },
         "validation": {
-          "median_seconds": 0.08935746698989533,
-          "p95_seconds": 0.08947045801323839,
-          "throughput_records_per_second": 2864.897681454521
+          "median_seconds": 0.08854593499563634,
+          "p95_seconds": 0.08950975301559083,
+          "throughput_records_per_second": 2891.154743722747
         }
       }
     },
@@ -107,51 +107,51 @@
         "median": 1.0,
         "min": 1
       },
-      "correctness_signature": "ead9aa6adb4dc597b17ecf2aa6587ba482012e901560c0051acc1c6fe4f55c76",
-      "peak_memory_bytes": 367008,
+      "correctness_signature": "56e63be98e146314b975d512a40206dc2a530181e70c9f5a2131280199476e9f",
+      "peak_memory_bytes": 363017,
       "records_per_source": 32,
       "records_total": 64,
       "resolution_discrepancies": 4,
       "stages": {
         "candidate_generation": {
-          "median_seconds": 0.011244861001614481,
-          "p95_seconds": 0.011401367984944955,
-          "throughput_records_per_second": 5691.488760137738
+          "median_seconds": 0.011499946005642414,
+          "p95_seconds": 0.011560928978724405,
+          "throughput_records_per_second": 5565.243521021628
         },
         "identity": {
-          "median_seconds": 0.002194870001403615,
-          "p95_seconds": 0.0022231430048123,
-          "throughput_records_per_second": 29158.90233092262
+          "median_seconds": 0.002200287999585271,
+          "p95_seconds": 0.0022045749938115478,
+          "throughput_records_per_second": 29087.10133040005
         },
         "ingestion": {
-          "median_seconds": 0.02306367998244241,
-          "p95_seconds": 0.023313857993343845,
-          "throughput_records_per_second": 2774.925772848089
+          "median_seconds": 0.022267203021328896,
+          "p95_seconds": 0.022867441992275417,
+          "throughput_records_per_second": 2874.182264323762
         },
         "matching": {
-          "median_seconds": 0.006413953902665526,
-          "p95_seconds": 0.006685360975097865,
-          "throughput_records_per_second": 9978.244460628683
+          "median_seconds": 0.006576036976184696,
+          "p95_seconds": 0.00661425496218726,
+          "throughput_records_per_second": 9732.305373552157
         },
         "normalization": {
-          "median_seconds": 0.01857263597776182,
-          "p95_seconds": 0.018623572977958247,
-          "throughput_records_per_second": 3445.9298118280685
+          "median_seconds": 0.025093408999964595,
+          "p95_seconds": 0.026963888987665996,
+          "throughput_records_per_second": 2550.470523956721
         },
         "reconciliation": {
-          "median_seconds": 0.008940133091527969,
-          "p95_seconds": 0.009001379046821967,
-          "throughput_records_per_second": 7158.73011562311
+          "median_seconds": 0.009967740916181356,
+          "p95_seconds": 0.01019166802871041,
+          "throughput_records_per_second": 6420.712630692895
         },
         "resolution": {
-          "median_seconds": 0.0008719089964870363,
-          "p95_seconds": 0.0009100970055442303,
-          "throughput_records_per_second": 73402.15579591345
+          "median_seconds": 0.0008933419885579497,
+          "p95_seconds": 0.0009075830166693777,
+          "throughput_records_per_second": 71641.096936807
         },
         "validation": {
-          "median_seconds": 0.022956948989303783,
-          "p95_seconds": 0.023005541996099055,
-          "throughput_records_per_second": 2787.826902861491
+          "median_seconds": 0.026128934987355024,
+          "p95_seconds": 0.026263999985530972,
+          "throughput_records_per_second": 2449.391834415467
         }
       }
     },
@@ -163,51 +163,51 @@
         "median": 1.0,
         "min": 1
       },
-      "correctness_signature": "69a8998879db39163e9a3078ee0b21b3bc260ea0a97f88b308d42e7bcd87e75b",
-      "peak_memory_bytes": 703307,
+      "correctness_signature": "d035d6755f1224be0a979d0779a78aaa524e90d8da2249cbe112cf72a5718533",
+      "peak_memory_bytes": 694477,
       "records_per_source": 64,
       "records_total": 128,
       "resolution_discrepancies": 8,
       "stages": {
         "candidate_generation": {
-          "median_seconds": 0.024207559996284544,
-          "p95_seconds": 0.02567332799662836,
-          "throughput_records_per_second": 5287.604369033717
+          "median_seconds": 0.023466067999834195,
+          "p95_seconds": 0.023529624013463035,
+          "throughput_records_per_second": 5454.684611026629
         },
         "identity": {
-          "median_seconds": 0.0045382849930319935,
-          "p95_seconds": 0.004932431009365246,
-          "throughput_records_per_second": 28204.486980550813
+          "median_seconds": 0.004297181003494188,
+          "p95_seconds": 0.004325132991652936,
+          "throughput_records_per_second": 29786.969619366446
         },
         "ingestion": {
-          "median_seconds": 0.04914410298806615,
-          "p95_seconds": 0.04975256402394734,
-          "throughput_records_per_second": 2604.585132647201
+          "median_seconds": 0.04539651199593209,
+          "p95_seconds": 0.04603659000713378,
+          "throughput_records_per_second": 2819.599884931025
         },
         "matching": {
-          "median_seconds": 0.013316985918208957,
-          "p95_seconds": 0.01397452800301835,
-          "throughput_records_per_second": 9611.784587455291
+          "median_seconds": 0.013278195139719173,
+          "p95_seconds": 0.013926109881140292,
+          "throughput_records_per_second": 9639.864353033385
         },
         "normalization": {
-          "median_seconds": 0.0390252860088367,
-          "p95_seconds": 0.04232371601392515,
-          "throughput_records_per_second": 3279.9247126854184
+          "median_seconds": 0.03736589397885837,
+          "p95_seconds": 0.03827012199326418,
+          "throughput_records_per_second": 3425.5837709228217
         },
         "reconciliation": {
-          "median_seconds": 0.017917018092703074,
-          "p95_seconds": 0.018429521995130926,
-          "throughput_records_per_second": 7144.045919791171
+          "median_seconds": 0.019099132856354117,
+          "p95_seconds": 0.019682590092997998,
+          "throughput_records_per_second": 6701.874947030147
         },
         "resolution": {
-          "median_seconds": 0.000925430009374395,
-          "p95_seconds": 0.0009606230014469475,
-          "throughput_records_per_second": 138314.07962070516
+          "median_seconds": 0.000911379000172019,
+          "p95_seconds": 0.0009348340099677444,
+          "throughput_records_per_second": 140446.51015202297
         },
         "validation": {
-          "median_seconds": 0.04693623399361968,
-          "p95_seconds": 0.048020754009485245,
-          "throughput_records_per_second": 2727.104181758592
+          "median_seconds": 0.0448208519956097,
+          "p95_seconds": 0.04511659799027257,
+          "throughput_records_per_second": 2855.8136291683586
         }
       }
     }

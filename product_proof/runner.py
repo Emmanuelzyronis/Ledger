@@ -111,7 +111,12 @@ def _all_resolution_rows(database: LedgerDatabase) -> list[dict[str, Any]]:
 
 
 def pipeline_decisions(database: LedgerDatabase) -> list[dict[str, Any]]:
-    """Initial terminal decision rows: outcome-bearing, non-superseded rows."""
+    """Initial terminal decision rows: outcome-bearing versions that supersede nothing.
+
+    A late-arrival version supersedes an earlier version, so it is excluded from
+    this *initial* projection while the original version stays included. Use
+    ``LedgerDatabase.reconciliations.list_current`` for current state.
+    """
     return [row for row in _all_reconciliation_rows(database)
             if row["outcome"] is not None and row["supersedes_reconciliation_id"] is None]
 
@@ -362,12 +367,33 @@ def run_portfolio(database: LedgerDatabase | None = None) -> dict[str, Any]:
         generate_candidates(db)
         evaluate_matching(db)
         a003_rows = [row for row in _all_reconciliation_rows(db) if "A003" in _row_names(db, row)]
+        late_matched = [row for row in a003_rows if row["outcome"] == "MATCHED" and "B-998" in _row_names(db, row)]
+        original_unmatched = [row for row in a003_rows
+                              if row["outcome"] == "UNMATCHED_A" and row["supersedes_reconciliation_id"] is None]
         recorder.check("late_arrival.new_decision",
                        "late arrival adds a MATCHED decision for A003 while preserving its UNMATCHED_A history",
-                       any(row["outcome"] == "MATCHED" and "B-998" in _row_names(db, row) for row in a003_rows)
-                       and any(row["outcome"] == "UNMATCHED_A" and row["supersedes_reconciliation_id"] is None
-                               for row in a003_rows),
+                       bool(late_matched) and bool(original_unmatched),
                        a003_rows)
+        # Architecture section 28 / D-007: the late arrival creates a linked
+        # superseding reconciliation version rather than a second version-one row.
+        recorder.check("late_arrival.supersedes_prior_version",
+                       "late arrival creates a linked superseding reconciliation version",
+                       len(late_matched) == 1 and len(original_unmatched) == 1
+                       and late_matched[0]["reconciliation_version"] == 2
+                       and late_matched[0]["supersedes_reconciliation_id"] == original_unmatched[0]["reconciliation_id"],
+                       {"late": [{key: row[key] for key in ("reconciliation_id", "reconciliation_version",
+                                                            "outcome", "supersedes_reconciliation_id")}
+                                 for row in late_matched],
+                        "original": [{key: row[key] for key in ("reconciliation_id", "reconciliation_version",
+                                                                "outcome", "supersedes_reconciliation_id")}
+                                     for row in original_unmatched]})
+        current_ids = {row.reconciliation_id for row in db.reconciliations.list_current()}
+        recorder.check("late_arrival.current_state",
+                       "current_state is the latest non-superseded version for the A003 scope",
+                       bool(late_matched) and bool(original_unmatched)
+                       and late_matched[0]["reconciliation_id"] in current_ids
+                       and original_unmatched[0]["reconciliation_id"] not in current_ids,
+                       {"current_versions": len(current_ids)})
 
         current_raw_snapshot = _raw_snapshot(db)
         recorder.check("history.immutable_rows",

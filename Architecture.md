@@ -1254,7 +1254,23 @@ The system must preserve:
 
 Late arrival means a valid raw record for a batch or source transaction is first accepted after a prior reconciliation version for the relevant scope reached a terminal outcome. The new record may be evaluated against eligible prior records within the same source pair and configured date window. It creates a new reconciliation version; it never reopens or overwrites the old version. `current_state` is the latest non-superseded version by monotonically increasing `reconciliation_version`.
 
-A correction is a new raw record for an existing `(source_id, source_record_id)` whose payload differs from the prior raw identity. It creates a new canonical and reconciliation version linked by supersession. A late arrival has a new source-native record identity; a correction reuses the source-native identifier but never the raw identity.
+A correction is a new raw record for an existing `(source_id, source_record_id)` whose payload differs from the prior raw identity. A late arrival has a new source-native record identity; a correction reuses the source-native identifier but never the raw identity. Corrections carry their supersession lineage on the raw record (`supersedes_raw_record_id`, §27) and on the canonical transaction (`supersedes_canonical_id`, §27); the reconciliation consequence of a correction is governed by the single reconciliation-supersession rule below, exactly as for any other re-evaluation.
+
+## 28.1 Reconciliation version supersession rule (LA-1)
+
+This is the single authoritative rule for when a reconciliation version supersedes another. It applies to late arrivals, re-evaluations, and any other new decision.
+
+The **participant set** of a reconciliation version is the set of its non-null canonical transaction identifiers (`source_a_record_id`, `source_b_record_id`).
+
+1. A decision whose participant set is empty — a raw-only `INVALID` decision — never supersedes another version and is always version 1.
+2. Re-evaluating an identical decision (same participants, raw record, outcome, and rule version) is idempotent: it returns the existing version and creates no new row.
+3. Otherwise the new decision supersedes every *current* version whose participant set is a **subset** of the new decision's participant set. The new `reconciliation_version` is the superseded version's `reconciliation_version` plus one, and `supersedes_reconciliation_id` links the new row to it. If more than one current version qualifies, the highest `(reconciliation_version, reconciliation_id)` is linked deterministically.
+4. Superseded versions are immutable and remain retrievable, but they are excluded from `current_state`.
+5. A re-evaluation that does not extend its participant scope — for example a correction that introduces a new canonical version alongside the superseded one — does not supersede an unrelated version under this rule; it creates a new immutable decision version.
+
+The canonical late-arrival case is `{A17} → {A17, B93}`: the singleton `UNMATCHED_A` version is superseded by the two-participant `MATCHED` version 2.
+
+**Known limitation (tracked, not a silent deviation):** superseded canonical versions remain part of the candidate and matching graph, so a corrected source record can still be re-evaluated and produce additional immutable decision rows. Excluding superseded canonical versions from candidate generation is a separate, open design decision and is not implied by LA-1.
 
 ---
 
@@ -2126,7 +2142,7 @@ Currency must be equal ISO-4217 code; cross-currency reconciliation is prohibite
 
 ### D-007 — Late-arrival semantics — RESOLVED
 
-Late arrivals create new reconciliation versions and never reopen or overwrite prior versions (§28).
+Late arrivals create new reconciliation versions and never reopen or overwrite prior versions. The exact scope and versioning rule is LA-1 in §28.1. No legacy or conflicting late-arrival rule exists.
 
 ### D-008 — Resolution authority — RESOLVED
 

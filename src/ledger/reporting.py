@@ -52,6 +52,25 @@ class ReportingService:
         where = " WHERE batch_id = ?" if batch_id else ""
         return self._rows("reconciliations", where, (batch_id,) if batch_id else ())
 
+    def current_reconciliations(self, *, batch_id: str | None = None) -> list[dict[str, Any]]:
+        """Latest non-superseded version per reconciliation scope (Architecture §28).
+
+        A version is current unless another immutable version links to it via
+        ``supersedes_reconciliation_id``. Superseded versions remain retrievable
+        through :meth:`reconciliations`; this projection is the authoritative
+        ``current_state`` view.
+        """
+        sql = ("SELECT * FROM reconciliations WHERE reconciliation_id NOT IN "
+               "(SELECT supersedes_reconciliation_id FROM reconciliations "
+               " WHERE supersedes_reconciliation_id IS NOT NULL)")
+        params: tuple[Any, ...] = ()
+        if batch_id:
+            sql += " AND batch_id = ?"
+            params = (batch_id,)
+        sql += " ORDER BY reconciliation_id"
+        return [{key: _json_value(row[key]) for key in row.keys()}
+                for row in self.database.connection.execute(sql, params).fetchall()]
+
     def discrepancies(self, *, batch_id: str | None = None) -> list[dict[str, Any]]:
         if batch_id:
             return self._rows("discrepancies", " WHERE reconciliation_id IN (SELECT reconciliation_id FROM reconciliations WHERE batch_id = ?)", (batch_id,))
@@ -66,8 +85,14 @@ class ReportingService:
         for rec in recs:
             outcome = rec.get("outcome") or rec.get("state")
             counts[outcome] = counts.get(outcome, 0) + 1
+        current = self.current_reconciliations(batch_id=batch_id)
+        current_counts: dict[str, int] = {}
+        for rec in current:
+            outcome = rec.get("outcome") or rec.get("state")
+            current_counts[outcome] = current_counts.get(outcome, 0) + 1
         watermark = self.database.connection.execute("SELECT COUNT(*) AS count, MAX(timestamp) AS timestamp FROM audit_events").fetchone()
         return {"batch_id": batch_id, "reconciliation_count": len(recs), "outcomes": counts,
+                "current_reconciliation_count": len(current), "current_outcomes": current_counts,
                 "discrepancy_count": len(self.discrepancies(batch_id=batch_id)),
                 "source_watermark": {"event_count": watermark["count"], "timestamp": watermark["timestamp"]}}
 

@@ -2,7 +2,7 @@
 
 Run these prompts sequentially with the engineering agent.
 
-Current repository status: Layers 1-12 are completed and verified; Layer 13 is the next authorized layer; Layers 13-15 are future and not implemented.
+Current repository status: Layers 1-15 are completed and verified. The layer sequence is closed; no post-Layer-15 implementation layer is authorized. Subsequent work is tracked as production-readiness and portfolio-cut epics in Linear, not as new layers.
 
 The architecture defines ten **processing stages** (the logical movement and meaning of data) and fifteen **implementation layers** (the controlled repository build order). The numbered files below are implementation layers and map to the processing stages as specified in `Architecture.md` §6 and §52. An implementation layer may establish support for a stage without implementing later business behavior.
 

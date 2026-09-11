@@ -245,6 +245,20 @@ class ReplayAndHistoryProofTests(unittest.TestCase):
         self.assertEqual(len(a003_rows), 2)
         self.assertIn("MATCHED", {row["outcome"] for row in a003_rows})
         self.assertEqual(row_count(self.db, "reconciliations"), len(prior) + 1)
+        # Architecture section 28 / D-007: the late arrival creates a linked
+        # superseding version and never reopens or overwrites the original.
+        original = a003_unmatched[0]
+        superseding = [row for row in a003_rows if row["outcome"] == "MATCHED"]
+        self.assertEqual(len(superseding), 1)
+        self.assertEqual(superseding[0]["reconciliation_version"], 2)
+        self.assertEqual(superseding[0]["supersedes_reconciliation_id"], original["reconciliation_id"])
+        self.assertEqual(superseding[0]["state"], "MATCHED")
+        current_ids = {row.reconciliation_id for row in self.db.reconciliations.list_current()}
+        self.assertIn(superseding[0]["reconciliation_id"], current_ids)
+        self.assertNotIn(original["reconciliation_id"], current_ids)
+        # Re-evaluating the same authoritative state adds no version.
+        evaluate_matching(self.db)
+        self.assertEqual(row_count(self.db, "reconciliations"), len(prior) + 1)
 
     def test_raw_history_is_immutable(self) -> None:
         row = self.db.connection.execute(
