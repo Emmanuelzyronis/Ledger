@@ -38,9 +38,12 @@ each response against the published schema.
   `x-ledger-error-codes` extension and in `ErrorDetail.code`.
 - `X-Correlation-ID` is echoed on both success and error responses; the service
   also propagates it between the service and API layers.
-- `GET /v1/health` and `GET /v1/ready` are the only unauthenticated operations.
-  A degraded readiness probe returns `503` with the health **data** shape (not an
-  error envelope) because it is a probe, not a business read.
+- `GET /v1/health`, `GET /v1/ready`, and `GET /v1/metrics` are the only
+  unauthenticated operations. A degraded readiness probe returns `503` with the
+  health **data** shape (not an error envelope) because it is a probe, not a
+  business read. `/v1/metrics` returns Prometheus text exposition, not JSON, and
+  is an observability probe rather than a versioned business operation
+  (`docs/observability.md`); it carries bounded labels only.
 
 ## Read projections
 

@@ -1,0 +1,149 @@
+{
+  "alerts": {
+    "all_rules_fire_on_their_condition": true,
+    "drill": [
+      {
+        "alert": "LedgerServiceDown",
+        "fires": true,
+        "runbook": "docs/runbooks/service-down.md"
+      },
+      {
+        "alert": "LedgerReadinessFailing",
+        "fires": true,
+        "runbook": "docs/runbooks/database-unavailable.md"
+      },
+      {
+        "alert": "LedgerDatabaseFailures",
+        "fires": true,
+        "runbook": "docs/runbooks/database-unavailable.md"
+      },
+      {
+        "alert": "LedgerAuditFailures",
+        "fires": true,
+        "runbook": "docs/runbooks/audit-failure.md"
+      },
+      {
+        "alert": "LedgerProcessingFailures",
+        "fires": true,
+        "runbook": "docs/runbooks/processing-failures.md"
+      },
+      {
+        "alert": "LedgerRetryStorm",
+        "fires": true,
+        "runbook": "docs/runbooks/processing-failures.md"
+      },
+      {
+        "alert": "LedgerServerErrorRatio",
+        "fires": true,
+        "runbook": "docs/runbooks/high-error-rate.md"
+      },
+      {
+        "alert": "LedgerLatencyHigh",
+        "fires": true,
+        "runbook": "docs/runbooks/high-latency.md"
+      },
+      {
+        "alert": "LedgerSaturation",
+        "fires": true,
+        "runbook": "docs/runbooks/saturation.md"
+      },
+      {
+        "alert": "LedgerBackupStale",
+        "fires": true,
+        "runbook": "docs/runbooks/backup-failure.md"
+      }
+    ],
+    "healthy_state_fires_nothing": true,
+    "rule_count": 10,
+    "runbooks_present": true
+  },
+  "correlation": {
+    "header_echoed": true,
+    "note": "asserted by tests/test_observability.py against the ASGI boundary"
+  },
+  "epic": "EMM-82",
+  "method": "real service over a temp database -> boundary requests -> metrics scrape -> per-rule alert drill -> redaction proof",
+  "metrics": {
+    "bounded_routes_only": true,
+    "content_type": "text/plain; version=0.0.4; charset=utf-8",
+    "endpoint": "/v1/metrics",
+    "has_ready": true,
+    "has_request_counter": true,
+    "has_service_up": true,
+    "sample": [
+      "ledger_http_rejections_total{reason=\"unsupported_media_type\"} 1",
+      "ledger_http_requests_total{method=\"GET\",route=\"/v1/batches/{id}\",status=\"401\"} 1",
+      "ledger_http_requests_total{method=\"GET\",route=\"/v1/health\",status=\"200\"} 1",
+      "ledger_http_requests_total{method=\"GET\",route=\"/v1/metrics\",status=\"200\"} 1",
+      "ledger_http_requests_total{method=\"GET\",route=\"/v1/reports\",status=\"200\"} 1",
+      "ledger_http_requests_total{method=\"POST\",route=\"/v1/sources\",status=\"415\"} 1",
+      "ledger_service_starts_total 1",
+      "ledger_http_request_duration_seconds_bucket{method=\"GET\",route=\"/v1/batches/{id}\",le=\"0.005\"} 1",
+      "ledger_http_request_duration_seconds_bucket{method=\"GET\",route=\"/v1/batches/{id}\",le=\"0.01\"} 1",
+      "ledger_http_request_duration_seconds_bucket{method=\"GET\",route=\"/v1/batches/{id}\",le=\"0.025\"} 1",
+      "ledger_http_request_duration_seconds_bucket{method=\"GET\",route=\"/v1/batches/{id}\",le=\"0.05\"} 1",
+      "ledger_http_request_duration_seconds_bucket{method=\"GET\",route=\"/v1/batches/{id}\",le=\"0.1\"} 1"
+    ]
+  },
+  "ok": true,
+  "problems": [],
+  "redaction": {
+    "narration_absent_from_log": true,
+    "policy": {
+      "redaction": {
+        "allowed": [
+          "identifiers",
+          "counts",
+          "outcomes",
+          "durations",
+          "versions",
+          "status codes"
+        ],
+        "mechanism": "TelemetryEvent.as_dict applies _redact to every attributes mapping",
+        "never_logged": [
+          "raw record payloads and descriptions",
+          "canonical transaction field values",
+          "bearer tokens, secrets, and authorization headers",
+          "request bodies"
+        ],
+        "note": "Correlation ids are identifiers, not payloads, and are safe to log.",
+        "sensitive_terms": [
+          "password",
+          "secret",
+          "token",
+          "credential",
+          "authorization",
+          "payload",
+          "description"
+        ]
+      },
+      "retention": {
+        "alerts": "alert state and notifications retained 90 days by the alert manager",
+        "logs": "30 days in the log backend; the process keeps no log history",
+        "metrics": "15 months in the metrics backend at 1 minute resolution",
+        "traces": "not enabled in v1.0 (correlation ids only)"
+      }
+    },
+    "redacted_marker_present": true,
+    "secret_absent_from_log": true
+  },
+  "requests": [
+    {
+      "route": "/v1/health",
+      "status": 200
+    },
+    {
+      "route": "/v1/sources",
+      "status": 415
+    },
+    {
+      "route": "/v1/batches/{id}",
+      "status": 401
+    },
+    {
+      "route": "/v1/reports",
+      "status": 200
+    }
+  ],
+  "schema_version": 1
+}

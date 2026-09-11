@@ -19,24 +19,44 @@ from dataclasses import dataclass, field, replace
 import json
 import os
 import threading
+import time
 import uuid
 from typing import Any, Callable, Mapping
 from urllib.parse import urlsplit
 
 from .api import LedgerAPI, APIError
 from .config import ConfigError, Settings
-from .observability import CorrelationContext, TelemetryEvent, TelemetrySink
+from .observability import (
+    CorrelationContext,
+    JsonLogSink,
+    MetricsTelemetryBridge,
+    MetricsRegistry,
+    TelemetryEvent,
+    TelemetrySink,
+    route_template,
+)
 from .persistence import LedgerDatabase
 from .security import HmacTokenVerifier, Principal, SecurityPolicy, StaticTokenVerifier
 
 MAX_PORT = 65535
-PUBLIC_PATHS = {"health", "ready"}
+# Unauthenticated operational probes. They expose no business data: `health` and
+# `ready` are fixed status shapes, and `metrics` carries only bounded labels.
+PUBLIC_PATHS = {"health", "ready", "metrics"}
+METRICS_CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8"
 JSON_CONTENT_TYPE = "application/json"
 API_VERSION_PREFIX = "v1"
 
 
 def _looks_like_version(segment: str) -> bool:
     return len(segment) > 1 and segment[0] == "v" and segment[1:].isdigit()
+
+
+@dataclass(frozen=True, slots=True)
+class TextResponse:
+    """A non-JSON transport response (metrics exposition only, in v1.0)."""
+
+    body: str
+    content_type: str = METRICS_CONTENT_TYPE
 
 
 def _header(headers: Mapping[str, str], name: str) -> str | None:
@@ -59,6 +79,7 @@ class ServiceSettings:
     drain_timeout_seconds: float = 10.0
     cors_origins: tuple[str, ...] = ()
     rate_limit_per_minute: int = 0
+    max_concurrent_requests: int = 64
     require_tls: bool = False
     token_secret: str | None = None
     base: Settings = field(default_factory=Settings)
@@ -92,6 +113,9 @@ class ServiceSettings:
 
         max_json_depth = _positive_int(values, "LEDGER_MAX_JSON_DEPTH", 32)
         rate_limit_per_minute = _non_negative_int(values, "LEDGER_RATE_LIMIT_PER_MINUTE", 0)
+        max_concurrent_requests = _positive_int(
+            values, "LEDGER_MAX_CONCURRENT_REQUESTS", 64
+        )
         require_tls = _boolean(values, "LEDGER_REQUIRE_TLS", base.environment == "production")
         token_secret = (values.get("LEDGER_TOKEN_SECRET") or "").strip() or None
 
@@ -103,8 +127,9 @@ class ServiceSettings:
         return cls(database_path=database_path, host=host, port=port,
                    max_body_bytes=max_body_bytes, max_json_depth=max_json_depth,
                    drain_timeout_seconds=drain_timeout, cors_origins=cors_origins,
-                   rate_limit_per_minute=rate_limit_per_minute, require_tls=require_tls,
-                   token_secret=token_secret, base=base)
+                   rate_limit_per_minute=rate_limit_per_minute,
+                   max_concurrent_requests=max_concurrent_requests,
+                   require_tls=require_tls, token_secret=token_secret, base=base)
 
 
 def _positive_int(values: Mapping[str, str], name: str, default: int) -> int:
@@ -139,6 +164,14 @@ def _boolean(values: Mapping[str, str], name: str, default: bool) -> bool:
     return normalized == "true"
 
 
+def _percentile(values: list[float], quantile: float) -> float:
+    """Nearest-rank percentile over an already sorted list; 0.0 when empty."""
+    if not values:
+        return 0.0
+    index = max(0, min(len(values) - 1, int(round(quantile * len(values))) - 1))
+    return round(values[index], 6)
+
+
 def env_token_verifier(environ: Mapping[str, str] | None = None) -> Callable[[str], Mapping[str, Any] | None]:
     """Development/local opaque-token verifier.
 
@@ -170,7 +203,10 @@ class LedgerService:
     def __init__(self, settings: ServiceSettings | None = None, *, telemetry: TelemetrySink | None = None,
                  token_verifier: Callable[[str], Mapping[str, Any] | None] | None = None) -> None:
         self.settings = settings or ServiceSettings.from_env()
-        self.telemetry = telemetry
+        self.metrics = MetricsRegistry()
+        # Domain events flow through the bridge so metrics follow telemetry
+        # without the domain layer knowing about metrics.
+        self.telemetry = MetricsTelemetryBridge(self.metrics, telemetry)
         self.security = SecurityPolicy(
             max_body_bytes=self.settings.max_body_bytes,
             max_json_depth=self.settings.max_json_depth,
@@ -191,6 +227,7 @@ class LedgerService:
         self._active_requests = 0
         self._drained = threading.Event()
         self._drained.set()
+        self._ready = False
 
     # -- lifecycle -------------------------------------------------------
     @property
@@ -219,6 +256,8 @@ class LedgerService:
             database = LedgerDatabase(self.settings.database_path)
             self._database = database
             self._api = LedgerAPI(database, token_verifier=self._token_verifier, telemetry=self.telemetry)
+            self._ready = True
+        self.metrics.increment("ledger_service_starts_total")
         self._log("ledger.service.started", {
             "environment": self.settings.base.environment,
             "database_path": self.settings.database_path,
@@ -234,6 +273,7 @@ class LedgerService:
         with self._state_lock:
             database, api = self._database, self._api
             self._database, self._api = None, None
+            self._ready = False
         if api is None:
             return
         drained = self._drained.wait(timeout=self.settings.drain_timeout_seconds)
@@ -258,7 +298,7 @@ class LedgerService:
     # -- request handling ------------------------------------------------
     def handle(self, method: str, path: str, body: Any = None,
                headers: Mapping[str, str] | None = None, *,
-               client: str | None = None, scheme: str = "http") -> tuple[int, dict[str, Any]]:
+               client: str | None = None, scheme: str = "http") -> tuple[int, Any]:
         """Handle one HTTP request with request-scoped drain accounting."""
         if self._api is None:
             raise RuntimeError("service is not started")
@@ -278,7 +318,24 @@ class LedgerService:
         return self.security.security_headers(origin)
 
     def _handle(self, method: str, path: str, body: Any, headers: Mapping[str, str] | None,
-                client: str | None, scheme: str) -> tuple[int, dict[str, Any]]:
+                client: str | None, scheme: str) -> tuple[int, Any]:
+        """Instrument one request with bounded metric labels, then dispatch it."""
+        started = time.perf_counter()
+        route = route_template(path)
+        status = 500
+        try:
+            status, response = self._dispatch(method, path, body, headers, client, scheme)
+            return status, response
+        finally:
+            duration = time.perf_counter() - started
+            labels = {"method": method.upper(), "route": route}
+            self.metrics.increment(
+                "ledger_http_requests_total", status=str(status), **labels
+            )
+            self.metrics.observe("ledger_http_request_duration_seconds", duration, **labels)
+
+    def _dispatch(self, method: str, path: str, body: Any, headers: Mapping[str, str] | None,
+                  client: str | None, scheme: str) -> tuple[int, Any]:
         headers = headers or {}
         correlation_id = _header(headers, "X-Correlation-ID") or str(uuid.uuid4())
         parsed = urlsplit(path)
@@ -294,21 +351,28 @@ class LedgerService:
             normalized = f"{normalized}?{parsed.query}"
         origin = _header(headers, "Origin")
         if not self.security.origin_allowed(origin):
+            self.metrics.increment("ledger_http_rejections_total", reason="origin_not_allowed")
             return 403, self._failure("origin_not_allowed", "request origin is not allowed", correlation_id)
         # Unauthenticated liveness/readiness probes are exempt from TLS so a
         # platform can probe the pod directly; they expose no business data.
         if route not in PUBLIC_PATHS and not self.security.transport_ok(scheme, _header(headers, "X-Forwarded-Proto")):
+            self.metrics.increment("ledger_http_rejections_total", reason="tls_required")
             return 400, self._failure("tls_required", "HTTPS is required for this environment", correlation_id)
         if not self.security.rate_limiter.allow(client or "unknown"):
+            self.metrics.increment("ledger_http_rejections_total", reason="rate_limited")
             return 429, self._failure("rate_limited", "request rate limit exceeded", correlation_id)
         if body is not None and not self.security.json_depth_ok(body):
+            self.metrics.increment("ledger_http_rejections_total", reason="payload_too_deep")
             return 400, self._failure("payload_too_deep", "request body exceeds the JSON depth limit", correlation_id)
         if body is not None and method.upper() in {"POST", "PUT", "PATCH"}:
             content_type = (_header(headers, "Content-Type") or "").split(";")[0].strip().lower()
             if content_type != JSON_CONTENT_TYPE:
+                self.metrics.increment("ledger_http_rejections_total", reason="unsupported_media_type")
                 return 415, self._failure("unsupported_media_type", "request body must be application/json", correlation_id)
         if method.upper() == "OPTIONS":
             return 204, {"data": {}}
+        if method.upper() == "GET" and route == "metrics":
+            return 200, TextResponse(self.render_metrics())
         if method.upper() == "GET" and route in PUBLIC_PATHS:
             return self._public_probe(route)
         # Propagate one correlation id across the service and API layers so an
@@ -320,6 +384,9 @@ class LedgerService:
         except APIError as exc:
             return exc.status, {"error": {"code": exc.code, "message": exc.message},
                                 "correlation_id": correlation_id}
+        except Exception:
+            self.metrics.increment("ledger_processing_failures_total", stage="api")
+            raise
 
     @staticmethod
     def _failure(code: str, message: str, correlation_id: str | None = None) -> dict[str, Any]:
@@ -332,9 +399,44 @@ class LedgerService:
         try:
             self.database.connection.execute("SELECT 1").fetchone()
         except Exception:
+            self.metrics.increment("ledger_db_failures_total", operation="readiness")
             return 503, {"data": {"status": "degraded", "application": "ok", "database": "unavailable"},
                          "correlation_id": "ready"}
         return 200, {"data": {"status": "ok", "application": "ok", "database": "ok"}, "correlation_id": "ready"}
+
+    # -- metrics ---------------------------------------------------------
+    def render_metrics(self) -> str:
+        """Prometheus text exposition with derived service gauges.
+
+        Derived series are computed here rather than stored, so they always
+        reflect the current process state at scrape time.
+        """
+        active = self.active_requests
+        self.metrics.set_gauge("ledger_http_requests_in_flight", active)
+        body = self.metrics.render_prometheus()
+        request_series = self.metrics.counter_series("ledger_http_requests_total")
+        requests = sum(request_series.values())
+        errors = sum(
+            value
+            for labels, value in request_series.items()
+            if dict(labels).get("status", "").startswith("5")
+        )
+        durations = sorted(
+            item
+            for values in self.metrics.histogram_series("ledger_http_request_duration_seconds").values()
+            for item in values
+        )
+        p95 = _percentile(durations, 0.95)
+        limit = max(1, self.settings.max_concurrent_requests)
+        derived = [
+            f"ledger_service_up {1 if self.started else 0}",
+            f"ledger_ready_state {1 if self._ready else 0}",
+            f"ledger_in_flight_ratio {active / limit}",
+            f"ledger_in_flight_limit {limit}",
+            f"ledger_http_server_error_ratio {errors / requests if requests else 0.0}",
+            f"ledger_http_request_duration_seconds_p95 {p95}",
+        ]
+        return body + "\n".join(derived) + "\n"
 
     @property
     def active_requests(self) -> int:
@@ -383,6 +485,7 @@ class LedgerASGI:
         headers = {key.decode("latin-1"): value.decode("latin-1") for key, value in scope.get("headers", [])}
         response_headers = self.service.security_headers(_header(headers, "Origin"))
         correlation_id = _header(headers, "X-Correlation-ID") or str(uuid.uuid4())
+        response_headers["X-Correlation-ID"] = correlation_id
         body = b""
         more = True
         while more:
@@ -424,10 +527,24 @@ class LedgerASGI:
         await self._respond(send, status, response, response_headers)
 
     @staticmethod
-    async def _respond(send: Callable[[Mapping[str, Any]], Any], status: int, payload: Mapping[str, Any],
+    async def _respond(send: Callable[[Mapping[str, Any]], Any], status: int, payload: Any,
                        extra_headers: Mapping[str, str] | None = None) -> None:
+        if isinstance(payload, TextResponse):
+            await LedgerASGI._respond_text(send, status, payload, extra_headers)
+            return
         body = json.dumps(payload).encode("utf-8")
         headers = [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())]
+        for name, value in (extra_headers or {}).items():
+            headers.append((name.lower().encode("latin-1"), value.encode("latin-1")))
+        await send({"type": "http.response.start", "status": status, "headers": headers})
+        await send({"type": "http.response.body", "body": body})
+
+    @staticmethod
+    async def _respond_text(send: Callable[[Mapping[str, Any]], Any], status: int, payload: TextResponse,
+                            extra_headers: Mapping[str, str] | None = None) -> None:
+        body = payload.body.encode("utf-8")
+        headers = [(b"content-type", payload.content_type.encode("latin-1")),
+                   (b"content-length", str(len(body)).encode())]
         for name, value in (extra_headers or {}).items():
             headers.append((name.lower().encode("latin-1"), value.encode("latin-1")))
         await send({"type": "http.response.start", "status": status, "headers": headers})
@@ -437,6 +554,8 @@ class LedgerASGI:
 def create_app(settings: ServiceSettings | None = None, **kwargs: Any) -> LedgerASGI:
     """ASGI factory: ``uvicorn ledger.service:create_app --factory``."""
     resolved = settings or ServiceSettings.from_env()
+    if "telemetry" not in kwargs and resolved.base.telemetry_enabled:
+        kwargs["telemetry"] = JsonLogSink(service="ledger")
     return LedgerASGI(LedgerService(resolved, **kwargs))
 
 

@@ -6,7 +6,8 @@ LEDGER is exposed as a **single-process ASGI application** with **synchronous,
 request-scoped execution**. The domain and API layers stay framework-independent
 (`LedgerAPI.handle`); the service module owns only infrastructure concerns:
 validated settings, database lifecycle, health/readiness, graceful drain, and
-structured lifecycle telemetry.
+structured lifecycle telemetry. Observability (logs, metrics, alerts, runbooks)
+is documented in `docs/observability.md`.
 
 Process model:
 
@@ -65,8 +66,21 @@ All configuration is non-secret environment values with safe defaults
 | `LEDGER_API_TOKENS` | *(empty)* | development-only opaque bearer tokens, `token:role[:source|source]` |
 | `LEDGER_MAX_JSON_DEPTH` | `32` | maximum JSON nesting depth (415/400 on violation) |
 | `LEDGER_RATE_LIMIT_PER_MINUTE` | `0` | per-client fixed-window rate limit; `0` disables |
+| `LEDGER_MAX_CONCURRENT_REQUESTS` | `64` | concurrency reference for the saturation alert; not a hard limit |
 | `LEDGER_REQUIRE_TLS` | `true` in production | reject non-probe plaintext requests |
 | `LEDGER_CORS_ORIGINS` | *(empty)* | comma-separated allowlisted browser origins |
+
+## Operational probes
+
+`GET /v1/health`, `GET /v1/ready`, and `GET /v1/metrics` are public and exempt
+from TLS and bearer authentication so a platform can probe and scrape the
+process directly. None of them exposes business data: health/ready return a
+fixed status shape and metrics carry only bounded labels
+(`docs/observability.md` §3). Scrape `/v1/metrics` from a trusted network only.
+
+Every response echoes the request's `X-Correlation-ID` (generated when absent)
+as a header and in the JSON body, so a request can be traced across logs without
+logging business payloads.
 
 Secrets are never hardcoded and are supplied by the runtime environment or a
 secret manager (see `.env.example`). Tokens are never logged.

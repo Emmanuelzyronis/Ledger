@@ -1,7 +1,7 @@
 DB ?= ledger.sqlite3
 
 .PHONY: check test run frontend-check frontend-dev \
-	db-migrate db-verify db-backup db-retention
+	db-migrate db-verify db-backup db-retention observability-proof
 
 test:
 	PYTHONPATH=src python3 -m unittest discover -s tests -v
@@ -32,3 +32,7 @@ db-backup:
 
 db-retention:
 	PYTHONPATH=src python3 -m ledger.ops retention
+
+# Epic 6 observability evidence. See docs/observability.md.
+observability-proof:
+	PYTHONPATH=src python3 observability/run_observability_proof.py

@@ -1,0 +1,29 @@
+# LEDGER scrape configuration (Epic 6 / EMM-82).
+#
+# The service exposes Prometheus text exposition at /v1/metrics, which is an
+# unauthenticated operational probe alongside /v1/health and /v1/ready. Scrape it
+# only from inside the trusted network: it carries no business data, but it
+# should not be reachable from the public internet.
+#
+# The node exporter textfile collector supplies the backup freshness series
+# written by `ledger.ops backup --metrics-output` (see docs/runbooks/backup-failure.md).
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    service: ledger
+
+rule_files:
+  - alerts/ledger-alerts.yaml
+
+scrape_configs:
+  - job_name: ledger-service
+    metrics_path: /v1/metrics
+    scheme: http
+    static_configs:
+      - targets: ["ledger:8080"]
+
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]

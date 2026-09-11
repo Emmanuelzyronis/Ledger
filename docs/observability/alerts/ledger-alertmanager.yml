@@ -1,0 +1,22 @@
+# Minimal Alertmanager routing for LEDGER (Epic 6 / EMM-82).
+#
+# The receiver below is a placeholder on purpose: LEDGER does not embed
+# credentials. Point `url` at the real webhook via an Alertmanager secret or
+# environment substitution at deploy time (Epic 7).
+route:
+  receiver: ledger-oncall
+  group_by: [alertname, severity]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: ledger-oncall
+    webhook_configs:
+      - url: "http://alert-sink.invalid/ledger"
+        send_resolved: true
+
+inhibit_rules:
+  - source_matchers: [severity="critical"]
+    target_matchers: [severity="warning"]
+    equal: [alertname]

@@ -87,6 +87,75 @@ def _slug() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
+BACKUP_SUCCESS_METRIC = "ledger_backup_last_success_timestamp_seconds"
+
+
+def _read_metric(path: Path, name: str) -> float | None:
+    """Read one numeric sample from an existing textfile-collector output."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    for line in text.splitlines():
+        if line.startswith(name + " "):
+            try:
+                return float(line.split(" ", 1)[1].strip())
+            except (IndexError, ValueError):
+                return None
+    return None
+
+
+def write_backup_metrics(
+    output: str | Path,
+    *,
+    ok: bool,
+    size_bytes: int | None = None,
+    duration_seconds: float | None = None,
+    now: float | None = None,
+) -> Path:
+    """Write Prometheus textfile-collector metrics for one backup attempt.
+
+    On success the last-success timestamp advances; on failure it is preserved
+    from the previous file, so ``time() - ledger_backup_last_success_timestamp_seconds``
+    keeps growing and the staleness alert fires against the approved RPO (D-014).
+    """
+    path = Path(output)
+    previous = _read_metric(path, BACKUP_SUCCESS_METRIC)
+    success_at = (now if now is not None else time.time()) if ok else previous
+    lines = [
+        "# HELP ledger_backup_last_success_timestamp_seconds Unix time of the last verified snapshot",
+        "# TYPE ledger_backup_last_success_timestamp_seconds gauge",
+    ]
+    if success_at is not None:
+        lines.append(f"{BACKUP_SUCCESS_METRIC} {float(success_at)}")
+    lines.extend(
+        [
+            "# HELP ledger_backup_last_run_ok Whether the most recent backup attempt verified",
+            "# TYPE ledger_backup_last_run_ok gauge",
+            f"ledger_backup_last_run_ok {1 if ok else 0}",
+        ]
+    )
+    if size_bytes is not None:
+        lines.extend(
+            [
+                "# HELP ledger_backup_bytes Size of the verified snapshot in bytes",
+                "# TYPE ledger_backup_bytes gauge",
+                f"ledger_backup_bytes {int(size_bytes)}",
+            ]
+        )
+    if duration_seconds is not None:
+        lines.extend(
+            [
+                "# HELP ledger_backup_duration_seconds Wall-clock duration of the backup attempt",
+                "# TYPE ledger_backup_duration_seconds gauge",
+                f"ledger_backup_duration_seconds {float(duration_seconds)}",
+            ]
+        )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
 def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
     row = connection.execute(
         "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)
@@ -351,6 +420,11 @@ def _build_parser() -> argparse.ArgumentParser:
     backup_parser = subparsers.add_parser("backup", help="write a verified consistent snapshot")
     backup_parser.add_argument("--database", required=True)
     backup_parser.add_argument("--output", required=True)
+    backup_parser.add_argument(
+        "--metrics-output",
+        default=None,
+        help="write node_exporter textfile-collector metrics for this attempt",
+    )
 
     verify_parser = subparsers.add_parser("verify", help="verify a backup read-only")
     verify_parser.add_argument("--backup", required=True)
@@ -364,6 +438,11 @@ def _build_parser() -> argparse.ArgumentParser:
     drill_parser.add_argument("--database", required=True)
     drill_parser.add_argument("--workdir", required=True)
     drill_parser.add_argument("--evidence", default=None)
+    drill_parser.add_argument(
+        "--metrics-output",
+        default=None,
+        help="write node_exporter textfile-collector metrics for this attempt",
+    )
 
     subparsers.add_parser("retention", help="print the retention policy")
     return parser
@@ -371,6 +450,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     arguments = _build_parser().parse_args(argv)
+    metrics_output = getattr(arguments, "metrics_output", None)
     try:
         if arguments.command == "migrate":
             result = migrate(arguments.database, status_only=arguments.status)
@@ -387,8 +467,26 @@ def main(argv: list[str] | None = None) -> int:
         else:
             result = describe_retention()
     except OpsError as exc:
+        if metrics_output:
+            write_backup_metrics(metrics_output, ok=False)
         print(json.dumps({"ok": False, "error": str(exc)}, indent=2), file=sys.stderr)
         return 1
+    if metrics_output:
+        if arguments.command == "backup":
+            write_backup_metrics(
+                metrics_output,
+                ok=bool(result.get("verification", {}).get("ok")),
+                size_bytes=result.get("bytes"),
+                duration_seconds=result.get("duration_seconds"),
+            )
+        elif arguments.command == "drill":
+            measurements = result.get("report", {}).get("measurements", {})
+            write_backup_metrics(
+                metrics_output,
+                ok=bool(result.get("ok")),
+                size_bytes=measurements.get("backup_bytes"),
+                duration_seconds=measurements.get("backup_seconds"),
+            )
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if not isinstance(result, dict) or result.get("ok", True) else 1
 

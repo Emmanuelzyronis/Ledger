@@ -210,6 +210,10 @@ Epic 5 database-operations evidence is produced by
 `product_proof/seed_database.py`), covered by `tests/test_database_operations.py`, and
 documented in `docs/database-operations.md`.
 
+Epic 6 observability evidence is produced by
+`PYTHONPATH=src python3 observability/run_observability_proof.py`, covered by
+`tests/test_observability.py`, and documented in `docs/observability.md`.
+
 ## 16. Architecture Changes
 
 If implementation requires changing `Architecture.md`, stop and report:

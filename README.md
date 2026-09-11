@@ -55,8 +55,10 @@ uvicorn ledger.service:create_app --factory
 ```
 
 `GET /v1/health` (liveness) and `GET /v1/ready` (readiness) are public; all
-other `/v1` endpoints require bearer authentication. Configuration, process
-model, and shutdown behavior are documented in `docs/service.md`.
+other `/v1` endpoints require bearer authentication, except the `/v1/metrics`
+observability probe. Configuration, process model, and shutdown behavior are
+documented in `docs/service.md`; telemetry, metrics, dashboards, alerts, and
+runbooks are documented in `docs/observability.md`.
 
 The published HTTP contract is `docs/openapi/ledger.v1.json` (OpenAPI 3.1).
 `/v1` is the only supported version; a version-looking prefix other than `v1`
@@ -68,6 +70,18 @@ Run the repository checks with:
 
 ```sh
 make check
+```
+
+## Observability
+
+The service emits redacted structured JSON logs to stdout, exposes Prometheus
+metrics at `GET /v1/metrics` with bounded labels, and echoes `X-Correlation-ID`
+on every response. Dashboards, Prometheus scrape and alert rules, and runbooks
+live under `docs/observability/` and `docs/runbooks/`; the operator contract is
+`docs/observability.md`. Reproduce the evidence with:
+
+```sh
+make observability-proof   # writes evidence/observability.json
 ```
 
 ## Frontend dashboard

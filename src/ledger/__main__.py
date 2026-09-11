@@ -14,6 +14,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 from .service import LedgerService, ServiceSettings
+from .service import TextResponse
+from .observability import JsonLogSink
 
 
 def build_handler(service: LedgerService) -> type[BaseHTTPRequestHandler]:
@@ -55,13 +57,22 @@ def build_handler(service: LedgerService) -> type[BaseHTTPRequestHandler]:
             return
 
         def _send(self, status: int, payload: Any, request_headers: Any = None) -> None:
-            body = json.dumps(payload).encode("utf-8")
+            if isinstance(payload, TextResponse):
+                body = payload.body.encode("utf-8")
+                content_type = payload.content_type
+                correlation_id = None
+            else:
+                body = json.dumps(payload).encode("utf-8")
+                content_type = "application/json"
+                correlation_id = payload.get("correlation_id") if isinstance(payload, dict) else None
             origin = None
             if request_headers is not None:
                 origin = request_headers.get("Origin") or request_headers.get("origin")
             self.send_response(status)
-            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body)))
+            if correlation_id:
+                self.send_header("X-Correlation-ID", correlation_id)
             for name, value in service.security_headers(origin).items():
                 self.send_header(name, value)
             self.end_headers()
@@ -82,7 +93,8 @@ def serve(service: LedgerService, *, ready: threading.Event | None = None) -> Th
 
 def main(argv: list[str] | None = None) -> int:
     settings = ServiceSettings.from_env()
-    service = LedgerService(settings).start()
+    telemetry = JsonLogSink(service="ledger") if settings.base.telemetry_enabled else None
+    service = LedgerService(settings, telemetry=telemetry).start()
     stop = threading.Event()
 
     def request_shutdown(signum: int, frame: object) -> None:

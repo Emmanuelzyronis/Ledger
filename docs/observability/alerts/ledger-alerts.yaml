@@ -1,0 +1,95 @@
+# Generated from src/ledger/alerts.py — do not edit by hand.
+# Regenerate with: PYTHONPATH=src python3 -m ledger.alerts
+groups:
+  - name: ledger-service
+    rules:
+      - alert: LedgerServiceDown
+        expr: ledger_service_up == 0
+        for: 60s
+        labels:
+          severity: critical
+        annotations:
+          summary: "LEDGER service is not passing its liveness probe"
+          description: "The process is not serving. Check the process supervisor and last structured log lines."
+          runbook: "docs/runbooks/service-down.md"
+      - alert: LedgerReadinessFailing
+        expr: ledger_ready_state == 0
+        for: 60s
+        labels:
+          severity: critical
+        annotations:
+          summary: "LEDGER readiness probe is failing (database unreachable)"
+          description: "Liveness is up but the authoritative database cannot be reached; the service is not usable."
+          runbook: "docs/runbooks/database-unavailable.md"
+      - alert: LedgerDatabaseFailures
+        expr: increase(ledger_db_failures_total[5m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+        annotations:
+          summary: "LEDGER database operation failures are occurring"
+          description: "Authoritative state may be unavailable. Verify integrity and restore from the last verified snapshot if needed."
+          runbook: "docs/runbooks/database-unavailable.md"
+      - alert: LedgerAuditFailures
+        expr: increase(ledger_audit_failures_total[5m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+        annotations:
+          summary: "LEDGER audit writes are failing"
+          description: "An operation failed to record append-only audit history. This is an invariant-adjacent failure and must be investigated immediately."
+          runbook: "docs/runbooks/audit-failure.md"
+      - alert: LedgerProcessingFailures
+        expr: increase(ledger_processing_failures_total[10m]) > 0
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "LEDGER reconciliation processing is failing"
+          description: "A pipeline stage failed. Identify the stage label and batch, then re-run the idempotent operator from docs/service.md."
+          runbook: "docs/runbooks/processing-failures.md"
+      - alert: LedgerRetryStorm
+        expr: increase(ledger_processing_retries_total[10m]) > 10
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "LEDGER is retrying processing repeatedly"
+          description: "A retry loop is in progress. Confirm the underlying failure rather than letting retries accumulate."
+          runbook: "docs/runbooks/processing-failures.md"
+      - alert: LedgerServerErrorRatio
+        expr: ledger_http_server_error_ratio > 0.02
+        for: 300s
+        labels:
+          severity: warning
+        annotations:
+          summary: "LEDGER HTTP 5xx ratio is elevated"
+          description: "More than 2% of requests in the window returned 5xx."
+          runbook: "docs/runbooks/high-error-rate.md"
+      - alert: LedgerLatencyHigh
+        expr: ledger_http_request_duration_seconds_p95 > 1
+        for: 600s
+        labels:
+          severity: warning
+        annotations:
+          summary: "LEDGER p95 request latency is above the approved objective"
+          description: "Sustained p95 latency above one second. Compare against the staging capacity baseline before changing anything."
+          runbook: "docs/runbooks/high-latency.md"
+      - alert: LedgerSaturation
+        expr: ledger_in_flight_ratio > 0.8
+        for: 300s
+        labels:
+          severity: warning
+        annotations:
+          summary: "LEDGER in-flight requests are near the concurrency limit"
+          description: "The single-process service is saturating. Added load will queue in front of the request lock."
+          runbook: "docs/runbooks/saturation.md"
+      - alert: LedgerBackupStale
+        expr: time() - ledger_backup_last_success_timestamp_seconds > 3600
+        for: 0s
+        labels:
+          severity: critical
+        annotations:
+          summary: "LEDGER database backup is stale and the approved RPO is broken"
+          description: "No verified snapshot has succeeded within one hour — four times the approved 15-minute cadence (D-014). The RPO is no longer enforced."
+          runbook: "docs/runbooks/backup-failure.md"
