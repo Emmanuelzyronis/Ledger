@@ -30,9 +30,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6">{children}</main>
       <footer className="border-t border-line bg-surface">
         <div className="mx-auto w-full max-w-[1200px] px-4 py-3 text-2xs text-ink-subtle">
-          Skeleton build. Screens render placeholder data until the EMM-105 data-wiring pass; no
-          live
-          <span className="font-mono"> /v1 </span> calls are made yet.
+          Every screen reads live<span className="font-mono"> /v1 </span> operations from the
+          published contract. Reporting and export are read-only; resolution is the only mutation.
         </div>
       </footer>
     </div>

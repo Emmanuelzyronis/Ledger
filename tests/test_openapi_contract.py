@@ -26,6 +26,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from urllib.parse import quote
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
@@ -550,6 +551,62 @@ class ErrorContractTests(unittest.TestCase):
         finally:
             degraded.stop()
             shutil.rmtree(directory, ignore_errors=True)
+
+
+class ScopedReadTests(unittest.TestCase):
+    """A source-scoped reader sees exactly its own discrepancies and audit trails.
+
+    Regression coverage for three defects found while wiring the dashboard:
+    percent-encoded identifiers 404'd, ``GET /v1/discrepancies`` returned an
+    empty list for every scoped principal, and the audit trail was not scoped to
+    the discrepancy's source.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.service, cls.directory, cls.fixture = build_service()
+        cls.operator = {"Authorization": "Bearer operator"}
+        _, payload = cls.service.handle("GET", "/v1/discrepancies", None, cls.operator)
+        cls.discrepancies = payload["data"]
+        batches = {}
+        for row in cls.discrepancies:
+            _, reconciliation = cls.service.handle(
+                "GET", f"/v1/reconciliations/{row['reconciliation_id']}", None, cls.operator)
+            batch_id = reconciliation["data"]["batch_id"]
+            if batch_id not in batches:
+                _, batch = cls.service.handle("GET", f"/v1/batches/{batch_id}", None, cls.operator)
+                batches[batch_id] = batch["data"]["source_id"]
+            row["_source_id"] = batches[batch_id]
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.service.stop()
+        shutil.rmtree(cls.directory, ignore_errors=True)
+
+    def test_scoped_list_returns_only_in_scope_discrepancies(self):
+        status, payload = self.service.handle(
+            "GET", "/v1/discrepancies", None, {"Authorization": "Bearer reader-a"})
+        self.assertEqual(status, 200)
+        expected = {row["discrepancy_id"] for row in self.discrepancies if row["_source_id"] == "source-a"}
+        actual = {row["discrepancy_id"] for row in payload["data"]}
+        self.assertTrue(expected, "the fixtures must produce a source-a discrepancy")
+        self.assertTrue(expected - {row["discrepancy_id"] for row in self.discrepancies if row["_source_id"] == "source-b"})
+        self.assertEqual(actual, expected)
+
+    def test_scoped_reader_cannot_read_another_source(self):
+        foreign = next(row for row in self.discrepancies if row["_source_id"] == "source-b")
+        for path in (f"/v1/discrepancies/{foreign['discrepancy_id']}",
+                     f"/v1/audit/discrepancy/{foreign['discrepancy_id']}"):
+            status, _ = self.service.handle(
+                "GET", path, None, {"Authorization": "Bearer reader-a"})
+            self.assertEqual(status, 403, path)
+
+    def test_percent_encoded_identifiers_resolve(self):
+        target = self.discrepancies[0]["discrepancy_id"]
+        status, payload = self.service.handle(
+            "GET", f"/v1/discrepancies/{quote(target, safe='')}", None, self.operator)
+        self.assertEqual(status, 200, payload)
+        self.assertEqual(payload["data"]["discrepancy_id"], target)
 
 
 if __name__ == "__main__":

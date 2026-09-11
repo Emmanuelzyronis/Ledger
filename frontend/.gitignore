@@ -11,3 +11,8 @@ npm-debug.log*
 .env*
 # The template is intentionally tracked; only real environment files are ignored.
 !.env.example
+
+# End-to-end runs
+e2e/.fixtures.json
+/test-results/
+/playwright-report/

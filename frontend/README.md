@@ -4,9 +4,10 @@ Reconciliation dashboard for the LEDGER service. It consumes **only** the
 published `/v1` contract at `../docs/openapi/ledger.v1.json`. Unversioned paths
 such as `/reports` are a compatibility alias and are never called from here.
 
-Current state: **EMM-104 complete (scaffold + contract-checked typed client) and
-the EMM-105 skeleton (layout and information architecture) in place.** Screens
-render placeholder data; no live `/v1` calls are made yet.
+Current state: **EMM-104 (scaffold + contract-checked typed client) and EMM-105
+(live wiring, resolution submit path, end-to-end tests) complete.** Every screen
+reads the real service through the published `/v1` contract; there is no
+placeholder data left in `src/`.
 
 ## Stack
 
@@ -28,9 +29,49 @@ npm run generate:api   # regenerate the typed client from the OpenAPI artifact
 npm run typecheck      # tsc --noEmit
 npm run lint           # eslint
 npm run test           # vitest run
+npm run test:e2e       # build + Playwright against the real service and fixtures
 npm run build          # production build
 npm run check          # generate + typecheck + lint + test + build
 ```
+
+## Live data wiring
+
+Server Components call `loadData(operationId, …)` in `src/lib/api/server.ts`,
+which names a generated contract operation and returns either the documented
+`data` payload or a contract error. Reads never build a URL, and the bearer
+token (`LEDGER_API_TOKEN`) is read server-side only, so it never reaches the
+browser bundle or the client component layer.
+
+The one mutation in the UI — resolving a discrepancy — goes through a server
+action in `src/lib/api/actions.ts` and renders the returned `ResolutionResult`,
+including the new `reconciliation_version` and `supersedes_reconciliation_id`.
+`GET /v1/export` is proxied by `src/app/reports/export/route.ts` so the download
+also keeps the token server-side.
+
+Two contract realities shape the screens and are stated in the UI rather than
+worked around:
+
+- The contract publishes **no operation that enumerates batches**, so `/ingest`
+  is a workflow (register source → create batch → ingest records) plus a lookup
+  by the batch id returned from `POST /v1/batches`.
+- **Pipeline execution is not an HTTP operation** in v1.0 (Architecture §37,
+  §2157), so a batch created here stays `RECEIVED` until the repository's
+  pipeline runner is invoked. `/ingest` says so explicitly.
+
+## End-to-end tests
+
+`npm run test:e2e` runs Playwright against the real service, not a mock:
+
+1. `e2e/seed_fixtures.py` populates a temporary SQLite database with the Layer 15
+   portfolio fixtures using the repository's own pipeline driver, producing all
+   seven reconciliation outcomes and five open discrepancies.
+2. `e2e/global-setup.ts` starts the real LEDGER service over that database and
+   this dashboard in production mode, then tears both down.
+3. `e2e/dashboard.spec.ts` drives the UI: create a batch and ingest a record and
+   read the counters back, render the seven outcomes and the seeded counts, open
+   a discrepancy from the queue, and resolve one — asserting the new
+   `reconciliation_version` and that the superseded decision is still
+   retrievable.
 
 ## Running it against the service
 
@@ -102,7 +143,7 @@ Tokens live in `tailwind.config.ts`; the default palette is **replaced**, so
 
 | Route                 | Purpose                                                | Contract operations                                                                               |
 | --------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| `/ingest`             | Batch list with status, counters, and timeline         | `registerSource`, `createBatch`, `ingestRecord`, `getBatch`                                       |
+| `/ingest`             | Register source, create batch, ingest, look up batch   | `registerSource`, `createBatch`, `ingestRecord`, `getBatch`                                       |
 | `/reconciliation`     | Matched/unmatched counts and the seven outcomes        | `getReport`, `listReconciliations`, `getReconciliation`                                           |
 | `/discrepancies`      | Filterable/sortable queue                              | `listDiscrepancies`, `getDiscrepancy`, `getReconciliation`, `getAuditTrail`, `resolveDiscrepancy` |
 | `/discrepancies/{id}` | Evidence, audit trail, resolution action, supersession | `getDiscrepancy`, `getReconciliation`, `getAuditTrail`, `resolveDiscrepancy`                      |
@@ -132,8 +173,22 @@ npx vercel deploy --prod --yes
 
 ## Not done in this pass
 
-- Live data wiring, including the resolution submit path (EMM-105).
-- End-to-end tests driving the real service over deterministic fixtures (EMM-105).
 - Playwright/Remotion demo capture — explicitly out of scope.
 - EMM-103 (same-batch idempotency defect) is a service-side issue and is not
   touched here; the contract documents it as a known limitation.
+- No processing trigger exists, so the dashboard cannot advance a batch from
+  `RECEIVED` to reconciliation. Adding one is an API/architecture decision, not
+  a frontend decision; see the note in the `/ingest` screen.
+
+## Service defects found by the end-to-end pass
+
+Wiring the screens against the real service surfaced three service-side defects;
+all three are fixed and covered by `tests/test_openapi_contract.py`
+(`ScopedReadTests`):
+
+1. Percent-encoded path segments were never decoded, so any id containing `:`
+   (every LEDGER id) returned `404` over HTTP.
+2. `GET /v1/discrepancies` returned an empty list for every source-scoped
+   principal because the scope filter assumed a `batch_id` column that
+   discrepancy projections do not have.
+3. `GET /v1/audit/discrepancy/{id}` was not scoped to the discrepancy's source.

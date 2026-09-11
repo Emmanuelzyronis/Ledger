@@ -16,7 +16,9 @@ export function LedgerErrorPanel({ error, label }: { error: LedgerApiError; labe
         </div>
         <div>
           <dt className="text-2xs uppercase tracking-wide text-ink-muted">HTTP status</dt>
-          <dd className="mt-1 font-mono text-sm tabular-nums text-ink">{error.status}</dd>
+          <dd className="mt-1 font-mono text-sm tabular-nums text-ink">
+            {error.status === 0 ? "no response" : error.status}
+          </dd>
         </div>
         <div>
           <dt className="text-2xs uppercase tracking-wide text-ink-muted">Correlation id</dt>
@@ -26,7 +28,15 @@ export function LedgerErrorPanel({ error, label }: { error: LedgerApiError; labe
         </div>
       </dl>
       <p className="mt-3 text-sm text-ink">{error.message}</p>
-      {guidance ? <p className="mt-1 text-2xs text-ink-muted">{guidance}</p> : null}
+      {error.status === 0 ? (
+        <p className="mt-1 text-2xs text-ink-muted">
+          No response was received. Check that the service is running and that
+          <span className="font-mono"> LEDGER_API_BASE_URL </span>
+          points at it.
+        </p>
+      ) : guidance ? (
+        <p className="mt-1 text-2xs text-ink-muted">{guidance}</p>
+      ) : null}
     </div>
   );
 }

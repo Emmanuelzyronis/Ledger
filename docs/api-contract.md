@@ -63,6 +63,20 @@ to `[REDACTED]`; exports are read-only and never authoritative.
   authenticated and source-scoped but do not require a specific role in this
   cut; only discrepancy resolution requires `reconciliation_operator`.
 
+## Path parameters and source scoping
+
+- Path segments are percent-decoded after the route is split, so an identifier
+  containing a reserved character (every LEDGER id contains `:`) works whether
+  it is sent raw or percent-encoded. An encoded `/` can never change the route.
+- A principal configured with `source_ids` sees only rows whose batch belongs to
+  an allowed source. This covers batch and reconciliation reads, the
+  discrepancy list and detail, and the audit trail for `batch`, `record`,
+  `reconciliation`, `discrepancy`, and `resolution` subjects; out-of-scope
+  subjects return `403 forbidden`.
+
+Both behaviors were fixed during the EMM-105 dashboard pass and are guarded by
+`ScopedReadTests` in `tests/test_openapi_contract.py`.
+
 ## Verification
 
 ```sh

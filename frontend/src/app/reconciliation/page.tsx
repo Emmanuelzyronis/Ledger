@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { BatchLookupForm } from "@/components/batch-lookup-form";
 import { ContractCalls } from "@/components/contract-calls";
+import { DataError } from "@/components/data-error";
 import { PageHeader } from "@/components/page-header";
-import { PlaceholderNotice } from "@/components/placeholder-notice";
 import { StatusPill } from "@/components/status-pill";
 import { SummaryBand, type Stat } from "@/components/summary-band";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/table";
@@ -14,11 +15,7 @@ import {
   TONE_BAR_CLASS,
 } from "@/lib/contract/status";
 import { OUTCOMES } from "@/lib/contract/enums";
-import {
-  PLACEHOLDER_BATCHES,
-  PLACEHOLDER_RECONCILIATIONS,
-  PLACEHOLDER_REPORT,
-} from "@/lib/contract/placeholder";
+import { loadData } from "@/lib/api/server";
 import { formatCount, humanizeEnum, orDash, percent } from "@/lib/format";
 import { route } from "@/lib/routes";
 
@@ -26,73 +23,82 @@ export const metadata: Metadata = { title: "Reconciliation — LEDGER" };
 
 const CONTRACT_OPERATIONS = ["getReport", "listReconciliations", "getReconciliation"] as const;
 
+const TITLE = "Reconciliation";
+const DESCRIPTION =
+  "Counts by outcome for every decision version and for current versions only. A superseded version stays retrievable; it is never overwritten.";
+
 export default async function ReconciliationPage({
   searchParams,
 }: {
   searchParams: Promise<{ batch_id?: string }>;
 }) {
   const { batch_id: batchId } = await searchParams;
-  const report = PLACEHOLDER_REPORT;
-  const reconciliations = batchId
-    ? PLACEHOLDER_RECONCILIATIONS.filter((row) => row.batch_id === batchId)
-    : PLACEHOLDER_RECONCILIATIONS;
+  const query = batchId ? { batch_id: batchId } : {};
 
-  const matched = report.current_outcomes.MATCHED ?? 0;
+  const [report, decisions] = await Promise.all([
+    loadData("getReport", { query }),
+    loadData("listReconciliations", { query }),
+  ]);
+
+  if (!report.ok) {
+    return (
+      <DataError
+        title={TITLE}
+        description={DESCRIPTION}
+        error={report.error}
+        operations={CONTRACT_OPERATIONS}
+      />
+    );
+  }
+  if (!decisions.ok) {
+    return (
+      <DataError
+        title={TITLE}
+        description={DESCRIPTION}
+        error={decisions.error}
+        operations={CONTRACT_OPERATIONS}
+      />
+    );
+  }
+
+  const matched = report.data.current_outcomes.MATCHED ?? 0;
   const unmatched =
-    (report.current_outcomes.UNMATCHED_A ?? 0) + (report.current_outcomes.UNMATCHED_B ?? 0);
+    (report.data.current_outcomes.UNMATCHED_A ?? 0) +
+    (report.data.current_outcomes.UNMATCHED_B ?? 0);
 
   const stats: readonly Stat[] = [
     {
       label: "Reconciliation decisions",
-      value: formatCount(report.reconciliation_count),
+      value: formatCount(report.data.reconciliation_count),
       detail: "all versions",
     },
     {
       label: "Current versions",
-      value: formatCount(report.current_reconciliation_count),
+      value: formatCount(report.data.current_reconciliation_count),
       detail: "superseded excluded",
     },
     { label: "Matched", value: formatCount(matched) },
     { label: "Unmatched A + B", value: formatCount(unmatched) },
-    { label: "Ambiguous", value: formatCount(report.current_outcomes.AMBIGUOUS ?? 0) },
-    { label: "Open discrepancies", value: formatCount(report.discrepancy_count) },
+    { label: "Ambiguous", value: formatCount(report.data.current_outcomes.AMBIGUOUS ?? 0) },
+    { label: "Open discrepancies", value: formatCount(report.data.discrepancy_count) },
   ];
 
   return (
     <>
-      <PageHeader
-        title="Reconciliation"
-        description="Counts by outcome for every decision version and for current versions only. A superseded version stays retrievable; it is never overwritten."
-        actions={
-          <div className="flex items-center gap-2 text-2xs text-ink-muted">
-            <span>Batch</span>
-            <Link
-              href={route("/reconciliation")}
-              className={
-                batchId
-                  ? "font-mono text-2xs"
-                  : "font-mono text-2xs font-semibold text-ink no-underline"
-              }
-            >
-              all
-            </Link>
-            {PLACEHOLDER_BATCHES.map((batch) => (
-              <Link
-                key={batch.batch_id}
-                href={route(`/reconciliation?batch_id=${encodeURIComponent(batch.batch_id)}`)}
-                className={
-                  batchId === batch.batch_id
-                    ? "font-mono text-2xs font-semibold text-ink no-underline"
-                    : "font-mono text-2xs"
-                }
-              >
-                {batch.batch_id}
-              </Link>
-            ))}
-          </div>
-        }
-      />
-      <PlaceholderNotice what="the outcome counts and decision list" />
+      <PageHeader title={TITLE} description={DESCRIPTION} />
+
+      <BatchLookupForm action="/reconciliation" defaultBatchId={batchId} />
+      <p className="mb-4 text-2xs text-ink-subtle">
+        {batchId ? (
+          <>
+            Filtered to batch <span className="font-mono">{batchId}</span>.{" "}
+            <Link href={route("/reconciliation")}>Show all batches</Link>
+          </>
+        ) : (
+          "Showing every batch. Filter by a batch id returned from the ingest screen."
+        )}
+      </p>
+
       <SummaryBand stats={stats} columns={6} />
 
       <h2 className="mb-2 text-2xs font-medium uppercase tracking-wide text-ink-muted">
@@ -110,8 +116,8 @@ export default async function ReconciliationPage({
         </THead>
         <TBody>
           {OUTCOMES.map((outcome) => {
-            const current = report.current_outcomes[outcome] ?? 0;
-            const share = (current / report.current_reconciliation_count) * 100;
+            const current = report.data.current_outcomes[outcome] ?? 0;
+            const share = (current / report.data.current_reconciliation_count) * 100;
             return (
               <Tr key={outcome} accent={OUTCOME_TONE[outcome]}>
                 <Td className="whitespace-nowrap">
@@ -122,7 +128,7 @@ export default async function ReconciliationPage({
                   {OUTCOME_MEANING[outcome]}
                 </Td>
                 <Td align="right" className="font-mono tabular-nums">
-                  {formatCount(report.outcomes[outcome] ?? 0)}
+                  {formatCount(report.data.outcomes[outcome] ?? 0)}
                 </Td>
                 <Td align="right" className="font-mono tabular-nums">
                   {formatCount(current)}
@@ -130,7 +136,7 @@ export default async function ReconciliationPage({
                 <Td className="w-[160px]">
                   <div className="flex items-center gap-3">
                     <span className="w-10 shrink-0 text-right font-mono text-2xs tabular-nums text-ink-muted">
-                      {percent(current, report.current_reconciliation_count)}
+                      {percent(current, report.data.current_reconciliation_count)}
                     </span>
                     <span className="block h-1 w-full bg-surface-sunken">
                       <span
@@ -165,14 +171,14 @@ export default async function ReconciliationPage({
           </Tr>
         </THead>
         <TBody>
-          {reconciliations.length === 0 ? (
+          {decisions.data.length === 0 ? (
             <Tr>
               <Td colSpan={10} className="py-6 text-center text-sm text-ink-muted">
-                No reconciliation decisions in this batch. Select another batch.
+                No reconciliation decisions in this scope.
               </Td>
             </Tr>
           ) : (
-            reconciliations.map((row) => (
+            decisions.data.map((row) => (
               <Tr
                 key={row.reconciliation_id}
                 accent={row.outcome ? OUTCOME_TONE[row.outcome] : "pending"}

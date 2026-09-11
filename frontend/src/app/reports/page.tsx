@@ -1,52 +1,89 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
+import { BatchLookupForm } from "@/components/batch-lookup-form";
 import { ContractCalls } from "@/components/contract-calls";
+import { DataError } from "@/components/data-error";
 import { PageHeader } from "@/components/page-header";
-import { OperationLabel } from "@/components/operation-label";
-import { PlaceholderNotice } from "@/components/placeholder-notice";
 import { StatusPill } from "@/components/status-pill";
 import { SummaryBand, type Stat } from "@/components/summary-band";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/table";
 import { OUTCOMES } from "@/lib/contract/enums";
-import { PLACEHOLDER_REPORT } from "@/lib/contract/placeholder";
 import { OUTCOME_LABEL, OUTCOME_TONE, TONE_BAR_CLASS } from "@/lib/contract/status";
+import { loadData } from "@/lib/api/server";
 import { formatCount, formatTimestamp, percent } from "@/lib/format";
+import { route } from "@/lib/routes";
 
 export const metadata: Metadata = { title: "Reports — LEDGER" };
 
 const CONTRACT_OPERATIONS = ["getReport", "exportData"] as const;
 
-export default function ReportsPage() {
-  const report = PLACEHOLDER_REPORT;
+const TITLE = "Reports";
+const DESCRIPTION =
+  "Read-only projections derived from authoritative reconciliation state. Reports and exports are never a source of truth and never mutate a decision.";
+
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ batch_id?: string }>;
+}) {
+  const { batch_id: batchId } = await searchParams;
+  const report = await loadData("getReport", { query: batchId ? { batch_id: batchId } : {} });
+
+  if (!report.ok) {
+    return (
+      <DataError
+        title={TITLE}
+        description={DESCRIPTION}
+        error={report.error}
+        operations={CONTRACT_OPERATIONS}
+      />
+    );
+  }
+
+  const data = report.data;
+  const exportHref = batchId
+    ? `/reports/export?batch_id=${encodeURIComponent(batchId)}`
+    : "/reports/export";
+
   const stats: readonly Stat[] = [
-    { label: "Batch", value: report.batch_id ?? "all", detail: "batch_id filter" },
+    { label: "Batch", value: data.batch_id ?? "all", detail: "batch_id filter" },
     {
       label: "Reconciliation decisions",
-      value: formatCount(report.reconciliation_count),
+      value: formatCount(data.reconciliation_count),
       detail: "all versions",
     },
-    { label: "Current versions", value: formatCount(report.current_reconciliation_count) },
-    { label: "Discrepancies", value: formatCount(report.discrepancy_count) },
+    { label: "Current versions", value: formatCount(data.current_reconciliation_count) },
+    { label: "Discrepancies", value: formatCount(data.discrepancy_count) },
     {
       label: "Source events",
-      value: formatCount(report.source_watermark.event_count),
+      value: formatCount(data.source_watermark.event_count),
       detail: "watermark count",
     },
     {
       label: "Watermark time",
-      value: report.source_watermark.timestamp
-        ? formatTimestamp(report.source_watermark.timestamp)
+      value: data.source_watermark.timestamp
+        ? formatTimestamp(data.source_watermark.timestamp)
         : "—",
     },
   ];
 
   return (
     <>
-      <PageHeader
-        title="Reports"
-        description="Read-only projections derived from authoritative reconciliation state. Reports and exports are never a source of truth and never mutate a decision."
-      />
-      <PlaceholderNotice what="the report projection" />
+      <PageHeader title={TITLE} description={DESCRIPTION} />
+
+      <BatchLookupForm action="/reports" defaultBatchId={batchId} />
+      <p className="mb-4 text-2xs text-ink-subtle">
+        {batchId ? (
+          <>
+            Filtered to batch <span className="font-mono">{batchId}</span>.{" "}
+            <Link href={route("/reports")}>Show all batches</Link>
+          </>
+        ) : (
+          "Showing every batch. Filter by a batch id returned from the ingest screen."
+        )}
+      </p>
+
       <SummaryBand stats={stats} columns={6} />
 
       <h2 className="mb-2 text-2xs font-medium uppercase tracking-wide text-ink-muted">
@@ -63,8 +100,8 @@ export default function ReportsPage() {
         </THead>
         <TBody>
           {OUTCOMES.map((outcome) => {
-            const current = report.current_outcomes[outcome] ?? 0;
-            const share = (current / report.current_reconciliation_count) * 100;
+            const current = data.current_outcomes[outcome] ?? 0;
+            const share = (current / data.current_reconciliation_count) * 100;
             return (
               <Tr key={outcome} accent={OUTCOME_TONE[outcome]}>
                 <Td className="whitespace-nowrap">
@@ -72,7 +109,7 @@ export default function ReportsPage() {
                   <span className="ml-2 font-mono text-2xs text-ink-subtle">{outcome}</span>
                 </Td>
                 <Td align="right" className="font-mono tabular-nums">
-                  {formatCount(report.outcomes[outcome] ?? 0)}
+                  {formatCount(data.outcomes[outcome] ?? 0)}
                 </Td>
                 <Td align="right" className="font-mono tabular-nums">
                   {formatCount(current)}
@@ -80,7 +117,7 @@ export default function ReportsPage() {
                 <Td className="w-[200px]">
                   <div className="flex items-center gap-3">
                     <span className="w-10 shrink-0 text-right font-mono text-2xs tabular-nums text-ink-muted">
-                      {percent(current, report.current_reconciliation_count)}
+                      {percent(current, data.current_reconciliation_count)}
                     </span>
                     <span className="block h-1 w-full bg-surface-sunken">
                       <span
@@ -98,25 +135,24 @@ export default function ReportsPage() {
 
       <section className="mt-6 rounded-panel border border-line bg-surface">
         <h2 className="border-b border-line px-4 py-2 text-2xs font-medium uppercase tracking-wide text-ink-muted">
-          Export — <OperationLabel operation="exportData" />
+          Export — <span className="font-mono">GET /v1/export</span>
         </h2>
         <div className="space-y-3 px-4 py-3">
           <p className="text-sm text-ink-muted">
             The export projection contains the report plus every reconciliation and discrepancy in
             scope. It is derived state: exporting never changes a decision, and a superseded version
-            is still present in the export.
+            is still present in the export. The download is proxied by this dashboard so the bearer
+            token stays server-side.
           </p>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              disabled
-              className="rounded-control border border-accent bg-accent px-3 py-1 text-2xs font-medium text-white disabled:cursor-not-allowed disabled:border-line disabled:bg-surface-sunken disabled:text-ink-subtle"
+            <a
+              href={exportHref}
+              download
+              className="rounded-control border border-accent bg-accent px-3 py-1 text-2xs font-medium text-white no-underline hover:no-underline"
             >
               Export JSON
-            </button>
-            <span className="text-2xs text-ink-subtle">
-              Disabled in the skeleton build; wired during the EMM-105 data-wiring pass.
-            </span>
+            </a>
+            <span className="font-mono text-2xs text-ink-subtle">{exportHref}</span>
           </div>
           <dl className="grid grid-cols-1 gap-2 text-2xs sm:grid-cols-3">
             <div>

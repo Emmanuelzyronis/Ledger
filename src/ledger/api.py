@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import is_dataclass
 from typing import Any, Callable, Mapping
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from .domain import ResolutionType
 from .ingestion import RawIngestion
@@ -69,7 +69,9 @@ class LedgerAPI:
         return principal
 
     def _dispatch(self, method: str, path: str, body: Any, principal: Mapping[str, Any]) -> Any:
-        parts = path.split("/") if path else []
+        # Percent-decode each segment after splitting so an encoded "/" can never
+        # change the structure of the route (RFC 3986 path segment semantics).
+        parts = [unquote(segment) for segment in path.split("/")] if path else []
         if method == "GET" and parts == ["health"]:
             return self.reporting.health()
         if method == "GET" and parts == ["ready"]:
@@ -158,6 +160,21 @@ class LedgerAPI:
         elif entity_type == "reconciliation":
             rec = self.database.reconciliations.get(entity_id)
             if rec: self._authorize_batch_filter(principal, rec.batch_id)
+        elif entity_type == "discrepancy":
+            row = self.database.discrepancies.get(entity_id)
+            if row: self._authorize_discrepancy_scope(principal, row.reconciliation_id)
+        elif entity_type == "resolution":
+            row = self.database.resolutions.get(entity_id)
+            if row: self._authorize_discrepancy_scope(principal, row.reconciliation_id)
+        elif entity_type == "record":
+            raw = self.database.raw_records.get(entity_id)
+            if raw: self._authorize_batch_filter(principal, raw.batch_id)
+
+    def _authorize_discrepancy_scope(self, principal: Mapping[str, Any], reconciliation_id: str) -> None:
+        """Scope a discrepancy or resolution to the source of its reconciliation's batch."""
+        reconciliation = self.database.reconciliations.get(reconciliation_id)
+        if reconciliation:
+            self._authorize_batch_filter(principal, reconciliation.batch_id)
 
     def _authorize_batch_filter(self, principal: Mapping[str, Any], batch_id: str | None) -> None:
         if batch_id:
@@ -170,7 +187,14 @@ class LedgerAPI:
         if allowed is None: return rows
         result = []
         for row in rows:
-            batch = self.database.batches.get(row.get("batch_id"))
+            batch_id = row.get("batch_id")
+            if batch_id is None:
+                # Discrepancy projections carry a reconciliation id, not a batch
+                # id; resolve the batch through that link so source scoping applies.
+                reconciliation_id = row.get("reconciliation_id")
+                reconciliation = self.database.reconciliations.get(reconciliation_id) if reconciliation_id else None
+                batch_id = reconciliation.batch_id if reconciliation else None
+            batch = self.database.batches.get(batch_id) if batch_id else None
             if batch is not None and batch.source_id in allowed: result.append(row)
         return result
 

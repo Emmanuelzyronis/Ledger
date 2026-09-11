@@ -67,13 +67,17 @@ artifacts, not hand-written code.
 cd frontend
 npm install
 npm run check          # generate:api + typecheck + lint + vitest + next build
+npm run test:e2e       # Playwright against the real service over fixtures
 npm run dev            # dashboard on http://127.0.0.1:3000
 ```
 
-Current state: EMM-104 (scaffold and contract-checked typed client) is complete;
-the EMM-105 skeleton renders every screen from placeholder data, and the live
-`/v1` wiring and end-to-end tests remain. `npm run generate:api` must be re-run
-whenever `docs/openapi/ledger.v1.json` changes; `tests/contract-drift.test.ts`
-fails the build if it is not. See `frontend/README.md`.
+Current state: EMM-104 and EMM-105 are complete. Every screen reads live `/v1`
+operations through a server-only data layer; resolution is the only mutation.
+`docker`-free end-to-end proof is `npm run test:e2e`: it seeds a temporary
+database with the Layer 15 portfolio fixtures, starts the real service and the
+dashboard, and drives the UI through ingest, the seven outcomes, the discrepancy
+queue, and a resolution. `npm run generate:api` must be re-run whenever
+`docs/openapi/ledger.v1.json` changes; `tests/contract-drift.test.ts` fails the
+build if it is not. See `frontend/README.md`.
 
 Secrets are supplied through the runtime environment or a secret manager. Do not commit `.env` files or credentials.
