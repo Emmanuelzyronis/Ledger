@@ -1,0 +1,152 @@
+{
+  "dataset": {
+    "provenance": "outcomes derived from evidence/product-proof.json, not re-invented for staging",
+    "records": 1020,
+    "shape": "Layer 15 portfolio repeated as disjoint-key shards (amounts + dates + references shifted)",
+    "shards": 60
+  },
+  "environment": {
+    "auth": "HMAC-signed bearer tokens (production verifier)",
+    "database": "SQLite (single authoritative store)",
+    "host": "single process over real HTTP on 127.0.0.1 (stdlib server)",
+    "limitation": "one host, no container orchestration, no network latency between tiers",
+    "platform": "Linux 6.17.0-1022-azure",
+    "python": "3.12.3"
+  },
+  "epic": "EMM-84",
+  "generated_at": "2026-09-11T22:24:01.807038+00:00",
+  "ingest": {
+    "source_a": {
+      "accepted": 540,
+      "duplicate_submissions": 0,
+      "records": 540,
+      "requests_per_second": 216.38,
+      "seconds": 2.4956
+    },
+    "source_b": {
+      "accepted": 480,
+      "duplicate_submissions": 0,
+      "records": 480,
+      "requests_per_second": 217.29,
+      "seconds": 2.209
+    }
+  },
+  "late_arrival": {
+    "after": {
+      "batch_id": "batch-b1a86c2057db432589c56e871950d6c2",
+      "outcome": "MATCHED",
+      "reconciliation_id": "reconciliation:964f288fa591cf1b60626409b251a2b0eb92d7bbc620acc47734c4d2bd642d74",
+      "reconciliation_version": 2,
+      "supersedes_reconciliation_id": "reconciliation:0894ca10bd6adf3fc0ad8aa57159e5a93c37f4c78e85e1d0d2c6b13fb2c1593e"
+    },
+    "batches": {
+      "source_a": "batch-b1a86c2057db432589c56e871950d6c2",
+      "source_b": "batch-20040696172147a0b17a8d684d11af7a",
+      "states": [
+        "COMPLETED",
+        "COMPLETED"
+      ]
+    },
+    "before": {
+      "batch_id": "batch-b1a86c2057db432589c56e871950d6c2",
+      "outcome": "UNMATCHED_A",
+      "reconciliation_id": "reconciliation:0894ca10bd6adf3fc0ad8aa57159e5a93c37f4c78e85e1d0d2c6b13fb2c1593e",
+      "reconciliation_version": 1,
+      "supersedes_reconciliation_id": null
+    },
+    "prior_version_retrievable": true,
+    "scenario": "source A leg first (UNMATCHED_A), source B leg later (MATCHED)"
+  },
+  "load": {
+    "errors": 0,
+    "latency_ms": {
+      "max": 26.633,
+      "mean": 4.388,
+      "p50": 3.816,
+      "p95": 10.966,
+      "p99": 14.33
+    },
+    "profile": "8 concurrent clients x 25 requests",
+    "requests": 200,
+    "requests_per_second": 1657.92,
+    "seconds": 0.1206
+  },
+  "observability": {
+    "alerts_fired_during_load": [],
+    "correlation_in_logs": true,
+    "metrics_bounded_labels": true,
+    "metrics_scraped": true
+  },
+  "ok": true,
+  "pipeline": {
+    "batches": 3,
+    "expected_outcome_counts": {
+      "AMBIGUOUS": 180,
+      "DUPLICATE": 180,
+      "INVALID": 60,
+      "MATCHED": 240,
+      "MISMATCHED": 240,
+      "UNMATCHED_A": 60,
+      "UNMATCHED_B": 60
+    },
+    "long_batch": {
+      "counters": {
+        "accepted_count": 400,
+        "processed_count": 400,
+        "received_count": 400,
+        "unmatched_count": 400
+      },
+      "ingest": {
+        "accepted": 400,
+        "duplicate_submissions": 0,
+        "records": 400,
+        "requests_per_second": 192.21,
+        "seconds": 2.0811
+      },
+      "records": 400,
+      "state": "COMPLETED"
+    },
+    "outcome_counts": {
+      "AMBIGUOUS": 180,
+      "DUPLICATE": 180,
+      "INVALID": 60,
+      "MATCHED": 240,
+      "MISMATCHED": 240,
+      "UNMATCHED_A": 60,
+      "UNMATCHED_B": 60
+    },
+    "outcome_mismatches": 0,
+    "processing_seconds": 14.8706,
+    "reconciliation_rows": 1180,
+    "records_checked": 1020,
+    "records_per_second": 95.49,
+    "records_processed": 1420,
+    "states": {
+      "batch-10d63735c3ac47e2b60ab16b209b1f01": "COMPLETED",
+      "batch-459e69af02ec4a5aa08481f5c5f561a3": "COMPLETED",
+      "batch-b0c71d8792c743e1be63ae3ee8c63adc": "COMPLETED"
+    }
+  },
+  "problems": [],
+  "recovery": {
+    "backup_bytes": 10354688,
+    "backup_seconds": 0.0713,
+    "objectives_met": true,
+    "ok": true,
+    "restore_seconds": 0.0279,
+    "rto_margin_seconds": 1799.9008,
+    "rto_target_seconds": 1800
+  },
+  "schema_version": 1,
+  "security": {
+    "correlation_echo": {
+      "X-Correlation-ID": "staging-correlation-1",
+      "body": "health"
+    },
+    "degraded_readiness": 1,
+    "invalid_token": 401,
+    "operator_scoped_read": 200,
+    "unauthenticated_read": 401,
+    "wrong_scope_batch": 403
+  }
+}

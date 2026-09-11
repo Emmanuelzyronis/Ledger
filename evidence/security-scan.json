@@ -1,19 +1,21 @@
 {
   "epic": "EMM-83",
   "findings": 0,
-  "generated_at": "2026-09-11T21:27:47Z",
+  "generated_at": "2026-09-11T22:28:29Z",
   "ok": true,
   "problems": [],
   "require_tools": false,
   "scanners": [
     {
-      "exit_code": 1,
-      "files_scanned": null,
-      "findings": null,
+      "error": null,
+      "exit_code": 0,
+      "files_scanned": 5641,
+      "findings": 0,
       "status": "ran",
       "tool": "bandit"
     },
     {
+      "error": null,
       "exit_code": 0,
       "requirements": [
         "requirements.txt",

@@ -1461,7 +1461,7 @@ Initial performance evaluation should measure:
 
 The first benchmark target should be established against a known machine profile and representative dataset rather than selecting an arbitrary SLO without evidence.
 
-Layer 13 must provide a benchmark harness that records dataset manifest and checksum, machine/OS/runtime/database profile, warm-up iterations (at least one), measured iterations (at least five), median and p95 latency, throughput, peak memory, candidate-set distribution, and correctness comparison against the unoptimized deterministic pipeline. Numerical SLOs remain intentionally deferred under D-009; no performance claim is valid without this evidence.
+Layer 13 must provide a benchmark harness that records dataset manifest and checksum, machine/OS/runtime/database profile, warm-up iterations (at least one), measured iterations (at least five), median and p95 latency, throughput, peak memory, candidate-set distribution, and correctness comparison against the unoptimized deterministic pipeline. No performance claim is valid without this evidence. Numerical SLOs were deferred until representative measurements existed and are now resolved in D-009 against the Epic 8 staging rehearsal (`docs/staging.md`).
 
 The Layer 13 harness is `benchmarks/run_performance.py`; its methodology is documented in
 `docs/performance.md` and the latest reproducible baseline is stored in
@@ -2162,9 +2162,27 @@ Late arrivals create new reconciliation versions and never reopen or overwrite p
 
 Automatic deterministic resolutions are policy-defined; manual resolutions require the authorized actor `reconciliation_operator`.
 
-### D-009 — Benchmark target — DEFERRED
+### D-009 — Benchmark target — RESOLVED
 
-Layer 13 must capture the benchmark evidence contract in §34. Numerical SLOs are not defined until representative measurements exist.
+Layer 13 captures the benchmark evidence contract in §34. Numeric performance
+SLOs for the single-host v1.0 reference environment were approved after
+representative measurement in Epic 8 (EMM-84), and the full rehearsal plus
+method is recorded in `docs/staging.md` and `evidence/staging-proof.json`.
+
+- **Batch processing throughput >= 25 records/s** (measured 95.5).
+- **HTTP ingest throughput >= 50 records/s** (measured 216).
+- **Read API latency at 8 concurrent clients: p95 <= 250 ms, p99 <= 500 ms**
+  (measured p95 11.0 ms, p99 14.3 ms).
+- **Zero unexpected read errors under the load profile** (measured 0).
+- **Recovery objectives** are D-014, not restated here.
+
+These are regression floors for that reference profile, chosen with roughly a
+4x margin against the recorded baseline; they are not capacity guarantees for
+other hardware, and a capacity claim requires re-measurement on the target
+machine. **Write throughput deliberately carries no SLO**: commits are durable
+per record because a decision and its audit event commit atomically, and
+trading that durability for throughput is an architecture decision rather than
+an implementation detail.
 
 ### D-010 — Initial interface — RESOLVED
 
@@ -2202,6 +2220,15 @@ distinct from the performance SLOs still deferred by D-009.
   targets at the v1.0 scale; the targets do not force a database-boundary
   architecture change. Reassess if a later decision reverses the single-writer
   or backup strategy.
+- **Journal mode is WAL with `synchronous=FULL`** (Epic 8 / EMM-84). This keeps
+  the D-014 durability guarantee — a committed transaction survives power loss
+  — while removing the fsyncs that made the default rollback journal
+  write-bound. It does not change any business invariant: writes remain
+  single-writer, and the atomic decision-plus-audit unit is unchanged.
+  Consequently a snapshot must be taken with `VACUUM INTO` (as
+  `ledger.ops.backup` does) or with the SQLite backup API, never by copying the
+  database file while a writer is running, because committed pages may still
+  live only in the `-wal` sidecar.
 
 Backup scheduling, offsite replication, backup-failure alerting, and staging
 restore rehearsals are deployment and observability obligations owned by the

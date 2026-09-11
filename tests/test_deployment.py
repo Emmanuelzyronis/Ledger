@@ -211,6 +211,16 @@ class DeploymentConfigTests(unittest.TestCase):
 
 
 class SecurityGateTests(unittest.TestCase):
+    def test_unparseable_scanner_report_is_not_a_green_gate(self):
+        original = scan_module.bandit
+        self.addCleanup(setattr, scan_module, "bandit", original)
+        scan_module.bandit = lambda: {"tool": "bandit", "status": "ran", "exit_code": 1,
+                                      "findings": None, "files_scanned": None,
+                                      "error": "bandit produced no JSON report"}
+        result = scan_module.scan()
+        self.assertFalse(result["ok"])
+        self.assertTrue(any("no parseable report" in problem for problem in result["problems"]))
+
     def test_scan_writes_evidence_and_reports_findings(self):
         directory = Path(tempfile.mkdtemp(prefix="ledger-scan-"))
         self.addCleanup(shutil.rmtree, str(directory), ignore_errors=True)

@@ -8,12 +8,14 @@ import json
 from pathlib import Path
 import tempfile
 import threading
+import time
 import unittest
 import urllib.error
 import urllib.request
 
 from ledger.__main__ import serve
 from ledger.config import ConfigError
+from ledger.persistence import LedgerDatabase
 from ledger.observability import InMemoryTelemetrySink
 from ledger.service import LedgerASGI, LedgerService, ServiceSettings, env_token_verifier
 
@@ -242,6 +244,58 @@ class AsgiBoundaryTests(unittest.TestCase):
             service.stop()
 
 
+class ConcurrentReadTests(unittest.TestCase):
+    """Shared-connection coherence when request threads overlap.
+
+    Regression test for a staging finding: ``execute`` was serialized but the
+    fetch was not, so an interleaved statement from another thread re-bound the
+    pending rows' column metadata and reads failed with
+    ``IndexError: tuple index out of range``. Statements must be captured
+    inside the connection lock.
+    """
+
+    def test_overlapping_statements_never_corrupt_fetched_rows(self):
+        database = LedgerDatabase(":memory:")
+        try:
+            database.connection.executescript(
+                "CREATE TABLE wide (a,b,c,d,e,f,g,h,i,j,k);"
+                "CREATE TABLE narrow (x);"
+                "INSERT INTO wide VALUES (1,2,3,4,5,6,7,8,9,10,11);"
+                "INSERT INTO narrow VALUES (99);"
+            )
+            stop = threading.Event()
+            failures: list[str] = []
+            lock = threading.Lock()
+
+            def reader(sql: str) -> None:
+                while not stop.is_set():
+                    try:
+                        for row in database.connection.execute(sql):
+                            for key in row.keys():
+                                row[key]
+                    except Exception as exc:  # noqa: BLE001 - the assertion reports it
+                        with lock:
+                            failures.append(f"{type(exc).__name__}: {exc}")
+                        return
+
+            threads = [threading.Thread(
+                target=reader,
+                args=("SELECT * FROM wide" if index % 2 else "SELECT * FROM narrow",),
+                daemon=True) for index in range(6)]
+            for thread in threads:
+                thread.start()
+            deadline = time.monotonic() + 1.0
+            while time.monotonic() < deadline and not failures:
+                time.sleep(0.01)
+            stop.set()
+            for thread in threads:
+                thread.join(timeout=5)
+
+            self.assertEqual(failures, [])
+        finally:
+            database.close()
+
+
 class HttpProcessTests(unittest.TestCase):
     def test_http_roundtrip_and_file_backed_restart(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -280,6 +334,16 @@ class HttpProcessTests(unittest.TestCase):
                 status, body = call("GET", "/reports")
                 self.assertEqual(status, 200)
                 self.assertEqual(body["data"]["reconciliation_count"], 0)
+
+                # The stdlib transport used by serve() must echo a
+                # caller-supplied correlation id on probes too, matching the
+                # ASGI boundary contract.
+                probe = urllib.request.Request(
+                    f"http://127.0.0.1:{port}/v1/health", method="GET",
+                    headers={"X-Correlation-ID": "probe-correlation"})
+                with urllib.request.urlopen(probe, timeout=5) as response:
+                    self.assertEqual(response.headers.get("X-Correlation-ID"), "probe-correlation")
+                    self.assertEqual(json.loads(response.read())["data"]["status"], "ok")
             finally:
                 server.shutdown()
                 server.server_close()

@@ -214,6 +214,15 @@ Epic 6 observability evidence is produced by
 `PYTHONPATH=src python3 observability/run_observability_proof.py`, covered by
 `tests/test_observability.py`, and documented in `docs/observability.md`.
 
+Epic 8 staging evidence is produced by
+`PYTHONPATH=src python3 staging/run_staging_proof.py` (`make staging-proof`),
+covered by `tests/test_staging.py`, and documented in `docs/staging.md`. Architecture
+D-009 numerical performance SLOs are resolved against that rehearsal.
+
+Epic 6 observability evidence is produced by
+`PYTHONPATH=src python3 observability/run_observability_proof.py`, covered by
+`tests/test_observability.py`, and documented in `docs/observability.md`.
+
 ## 16. Architecture Changes
 
 If implementation requires changing `Architecture.md`, stop and report:

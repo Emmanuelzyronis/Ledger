@@ -2,7 +2,7 @@ DB ?= ledger.sqlite3
 
 .PHONY: check test run frontend-check frontend-dev \
 	db-migrate db-verify db-backup db-retention db-drill observability-proof \
-	scan release-check
+	staging-proof scan release-check
 
 test:
 	PYTHONPATH=src python3 -m unittest discover -s tests -v
@@ -37,6 +37,10 @@ db-retention:
 # Epic 6 observability evidence. See docs/observability.md.
 observability-proof:
 	PYTHONPATH=src python3 observability/run_observability_proof.py
+
+# Epic 8 staging rehearsal + representative load. See docs/staging.md.
+staging-proof:
+	PYTHONPATH=src python3 staging/run_staging_proof.py
 
 # Epic 5 recovery drill against a freshly seeded representative database.
 DRILL_DB ?= /tmp/ledger-ops-drill.sqlite3

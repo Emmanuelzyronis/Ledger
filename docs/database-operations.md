@@ -24,8 +24,15 @@ Explicit operational limits that follow from that choice:
 - Durability depends on the volume: use a persistent disk, not container-local
   ephemeral storage, and enable the storage layer's encryption.
 - Writer transactions use `BEGIN IMMEDIATE`; readers see committed state only.
-- Capacity is bounded by the volume. Backups are full-file copies, so the size
-  of the largest table set (`raw_records`, `audit_events`) drives backup cost.
+- The journal is **WAL with `synchronous=FULL`** (Epic 8 / EMM-84). Durability
+  is unchanged — a committed transaction survives power loss — but committed
+  pages may live only in the `-wal` sidecar until a checkpoint. A snapshot must
+  therefore go through `VACUUM INTO` (as `ledger.ops backup` does), the SQLite
+  backup API, or a stopped-service file copy. Never copy the database file
+  alone while a writer is running.
+- Capacity is bounded by the volume. A snapshot is a full, compact copy of the
+  database, so the size of the largest table set (`raw_records`,
+  `audit_events`) drives backup cost.
 
 ## 2. Migrations
 

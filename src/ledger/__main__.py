@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 from .service import LedgerService, ServiceSettings
-from .service import TextResponse
+from .service import TextResponse, _header
 from .observability import JsonLogSink
 
 
@@ -60,11 +60,14 @@ def build_handler(service: LedgerService) -> type[BaseHTTPRequestHandler]:
             if isinstance(payload, TextResponse):
                 body = payload.body.encode("utf-8")
                 content_type = payload.content_type
-                correlation_id = None
             else:
                 body = json.dumps(payload).encode("utf-8")
                 content_type = "application/json"
-                correlation_id = payload.get("correlation_id") if isinstance(payload, dict) else None
+            # Echo the caller's correlation id when supplied, matching the ASGI
+            # boundary; fall back to the body's id so probes stay traceable.
+            correlation_id = _header(request_headers, "X-Correlation-ID") if request_headers is not None else None
+            if not correlation_id and isinstance(payload, dict):
+                correlation_id = payload.get("correlation_id")
             origin = None
             if request_headers is not None:
                 origin = request_headers.get("Origin") or request_headers.get("origin")

@@ -29,5 +29,8 @@ count, and records the candidate/all-pairs ratio as evidence. This is a
 candidate-path check, not an unsupported runtime SLO.
 
 The checked-in JSON is a baseline from the environment where the benchmark was
-last run. Numerical SLOs remain intentionally deferred by Architecture §34 and
-D-009; rerun the harness on a target machine before making capacity claims.
+last run. These stage numbers are in-process and memory-backed, so they measure
+the pipeline's algorithmic cost, not durable write cost. The numerical SLOs for
+the single-host reference environment were resolved in Architecture D-009
+against the Epic 8 staging rehearsal (see `docs/staging.md`); rerun the harness
+on a target machine before making capacity claims about that machine.

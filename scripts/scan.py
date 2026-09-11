@@ -108,6 +108,12 @@ def scan(*, require_tools: bool = False) -> dict:
     problems: list[str] = []
     if require_tools and missing:
         problems.append(f"required scanners are not installed: {', '.join(missing)}")
+    # A scanner that ran but produced no parseable report must not be allowed to
+    # look like a clean scan: an unread report and an empty report are not the
+    # same evidence.
+    for item in results:
+        if item["status"] == "ran" and item.get("error"):
+            problems.append(f"{item['tool']} produced no parseable report: {item['error']}")
     if findings:
         problems.append(f"{findings} finding(s) reported")
     return {
