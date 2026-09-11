@@ -1,0 +1,18 @@
+# Verified snapshot every 15 minutes (Architecture D-014). Writes Prometheus
+# textfile metrics so the LedgerBackupStale alert can fire.
+#
+# The command runs through /bin/sh because the snapshot name needs a timestamp;
+# systemd does not perform command substitution itself.
+[Unit]
+Description=LEDGER verified database backup
+After=ledger.service
+
+[Service]
+Type=oneshot
+User=ledger
+Group=ledger
+EnvironmentFile=/etc/ledger/ledger.env
+ExecStart=/bin/sh -c '/opt/ledger/.venv/bin/python -m ledger.ops backup \
+  --database /var/lib/ledger/ledger.sqlite3 \
+  --output /var/backups/ledger/ledger-$(date -u +%Y%m%dT%H%M%SZ).sqlite3 \
+  --metrics-output /var/lib/node_exporter/textfile/ledger-backup.prom'

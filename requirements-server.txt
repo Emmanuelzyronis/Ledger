@@ -1,0 +1,3 @@
+# Optional ASGI server for `uvicorn ledger.service:create_app --factory`.
+# The dependency-free stdlib runner (`python -m ledger`) needs nothing extra.
+uvicorn==0.32.0

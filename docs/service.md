@@ -38,14 +38,22 @@ over HTTP:
   batches and `GET /v1/batches/{batch_id}` reports their counters, but a client
   cannot start processing, so the dashboard cannot advance a batch by itself.
 
-The supported operator entrypoint is **not yet published**. The only drivers in
-the repository today are proof/benchmark drivers
+The supported operator entrypoint is the published pipeline runner
+(`src/ledger/pipeline.py`, resolved as EMM-110):
+
+```sh
+PYTHONPATH=src python3 -m ledger.pipeline list    --database ledger.sqlite3
+PYTHONPATH=src python3 -m ledger.pipeline process --database ledger.sqlite3 --state VALIDATED
+PYTHONPATH=src python3 -m ledger.pipeline process --database ledger.sqlite3 --batch <batch_id>
+```
+
+It selects batches by id or by state, is idempotent on re-run (counters are
+recomputed from authoritative rows; a `COMPLETED` batch is never reopened),
+records a `processing_attempts` row for every run, and reports failures with
+explicit batch states plus exit code `2`. Proof and benchmark drivers
 (`product_proof/run_product_proof.py`, `benchmarks/run_performance.py`, and the
-frontend end-to-end fixture seeder), which sequence the layers for fixed
-fixtures rather than operate a stored batch. Publishing a supported runner —
-batch selection by state, idempotent re-run, explicit partial-failure state,
-exit codes, and telemetry — is tracked as EMM-110 and is a prerequisite for the
-operator workflow in Epics 7-8.
+frontend fixture seeder) remain fixtures-only and are not operator entrypoints.
+See `docs/deployment.md` §7.
 
 ## Configuration
 

@@ -99,7 +99,7 @@ class MigrationRunner:
     def history(self) -> list[MigrationRecord]:
         self.ensure_history()
         rows = self.database.connection.execute(
-            f"SELECT version, name, applied_at, baseline FROM {HISTORY_TABLE} ORDER BY version"
+            f"SELECT version, name, applied_at, baseline FROM {HISTORY_TABLE} ORDER BY version"  # nosec B608 - HISTORY_TABLE is a module constant
         ).fetchall()
         return [MigrationRecord(row[0], row[1], row[2], bool(row[3])) for row in rows]
 
@@ -139,7 +139,7 @@ class MigrationRunner:
 
     def _record(self, version: str, name: str, *, baseline: bool) -> None:
         self.database.connection.execute(
-            f"INSERT INTO {HISTORY_TABLE}(version, name, applied_at, baseline) VALUES (?, ?, ?, ?)",
+            f"INSERT INTO {HISTORY_TABLE}(version, name, applied_at, baseline) VALUES (?, ?, ?, ?)",  # nosec B608 - HISTORY_TABLE is a module constant; values are bound
             (version, name, datetime.now(timezone.utc).isoformat(), 1 if baseline else 0),
         )
 

@@ -1,0 +1,100 @@
+# LEDGER production-shaped stack (Epic 7 / EMM-83).
+#
+# This is the *same* artifact and process model used for staging and production:
+# one service container over one authoritative SQLite volume, plus the
+# observability stack from Epic 6. Development differs only by env file and
+# volume size. See docs/deployment.md for promotion and rollback.
+#
+# Secrets are never baked in: supply them with `--env-file deploy/env/<env>.env`
+# (copied from the committed *.env.example) or from the platform secret store.
+
+name: ledger
+
+services:
+  ledger:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: ${LEDGER_IMAGE:-ledger:local}
+    restart: unless-stopped
+    env_file:
+      - ./env/${LEDGER_ENV_FILE:-development}.env
+    environment:
+      LEDGER_ENV: ${LEDGER_ENV_NAME:-development}
+      LEDGER_DATABASE_PATH: /var/lib/ledger/ledger.sqlite3
+    ports:
+      - "${LEDGER_BIND:-127.0.0.1:8080}:8080"
+    volumes:
+      - ledger-data:/var/lib/ledger
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import json,urllib.request;print(json.load(urllib.request.urlopen('http://127.0.0.1:8080/v1/health'))['data']['status'])"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+
+  # Scheduled verified snapshots. Writes node-exporter textfile metrics so the
+  # LedgerBackupStale alert (docs/runbooks/backup-failure.md) can fire.
+  ledger-backup:
+    image: ${LEDGER_IMAGE:-ledger:local}
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c", "while true; do sleep 900; done"]
+    volumes:
+      - ledger-data:/var/lib/ledger:ro
+      - ledger-backups:/var/backups/ledger
+    profiles: ["backup"]
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    restart: unless-stopped
+    volumes:
+      - ../docs/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../docs/observability/alerts:/etc/prometheus/alerts:ro
+      - ../docs/observability/alerts/ledger-alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    ports:
+      - "127.0.0.1:9090:9090"
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    restart: unless-stopped
+    volumes:
+      - ledger-backup-metrics:/var/lib/node_exporter/textfile
+    command:
+      - --collector.textfile.directory=/var/lib/node_exporter/textfile
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    restart: unless-stopped
+    volumes:
+      - ../docs/observability/alerts/ledger-alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "127.0.0.1:9093:9093"
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../docs/observability/ledger-overview.dashboard.json:/var/lib/grafana/dashboards/ledger-overview.json:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3001:3000"
+
+volumes:
+  ledger-data:
+  ledger-backups:
+  ledger-backup-metrics:
+  prometheus-data:
+  grafana-data:

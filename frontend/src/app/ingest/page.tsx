@@ -249,10 +249,10 @@ export default async function IngestStatusPage({
       <IngestWorkflow batchId={batch?.ok ? batch.data.batch_id : batchId} />
       <p className="mt-3 text-2xs text-ink-subtle">
         Ingestion records raw evidence only. Validation, normalization, identity, candidate
-        generation, matching, and reconciliation run in the repository&rsquo;s pipeline runner; the
-        v1.0 contract exposes no processing trigger, so a batch created here stays in{" "}
-        <span className="font-mono">RECEIVED</span> until that runner is invoked. This is a known
-        contract gap, not a silently accepted limitation.
+        generation, matching, and reconciliation run in the operator pipeline runner (
+        <span className="font-mono">python -m ledger.pipeline process</span>). The v1.0 contract
+        deliberately exposes no processing trigger, so a batch created here stays in{" "}
+        <span className="font-mono">RECEIVED</span> until that runner is invoked.
       </p>
 
       <ContractCalls operations={CONTRACT_OPERATIONS} />

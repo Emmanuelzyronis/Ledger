@@ -1,0 +1,33 @@
+{
+  "epic": "EMM-83",
+  "findings": 0,
+  "generated_at": "2026-09-11T21:27:47Z",
+  "ok": true,
+  "problems": [],
+  "require_tools": false,
+  "scanners": [
+    {
+      "exit_code": 1,
+      "files_scanned": null,
+      "findings": null,
+      "status": "ran",
+      "tool": "bandit"
+    },
+    {
+      "exit_code": 0,
+      "requirements": [
+        "requirements.txt",
+        "requirements-server.txt"
+      ],
+      "status": "ran",
+      "tool": "pip-audit",
+      "vulnerabilities": 0
+    },
+    {
+      "reason": "trivy is not installed",
+      "status": "skipped",
+      "tool": "trivy"
+    }
+  ],
+  "schema_version": 1
+}

@@ -164,8 +164,10 @@ def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
 
 
 def _digest(connection: sqlite3.Connection, table: str) -> str:
+    if table not in STATE_TABLES:
+        raise OpsError(f"refusing to digest unknown table {table!r}")
     digest = hashlib.sha256()
-    for row in connection.execute(f"SELECT * FROM {table} ORDER BY 1"):
+    for row in connection.execute(f"SELECT * FROM {table} ORDER BY 1"):  # nosec B608 - table is validated against STATE_TABLES
         digest.update(json.dumps([str(value) for value in tuple(row)]).encode())
         digest.update(b"\n")
     return digest.hexdigest()
@@ -201,7 +203,7 @@ def snapshot(path: str | Path) -> dict[str, Any]:
             if not _table_exists(connection, table):
                 tables[table] = {"rows": None, "digest": None, "present": False}
                 continue
-            count = connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            count = connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # nosec B608 - table iterates STATE_TABLES
             tables[table] = {"rows": count, "digest": _digest(connection, table), "present": True}
         return {
             "integrity": connection.execute("PRAGMA integrity_check").fetchone()[0],

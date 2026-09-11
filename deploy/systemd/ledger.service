@@ -1,0 +1,28 @@
+# Non-container deployment path (Epic 7 / EMM-83).
+# Install to /etc/systemd/system/ledger.service with the release unpacked at
+# /opt/ledger. Secrets come from /etc/ledger/ledger.env (mode 0640, root:ledger).
+[Unit]
+Description=LEDGER reconciliation service
+After=network-online.target local-fs.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ledger
+Group=ledger
+WorkingDirectory=/opt/ledger
+EnvironmentFile=/etc/ledger/ledger.env
+ExecStart=/opt/ledger/.venv/bin/python -m ledger
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ledger
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

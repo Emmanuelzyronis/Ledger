@@ -1,0 +1,6 @@
+# Runtime dependencies are intentionally empty: LEDGER's service, domain,
+# storage, and operator tooling use only the Python standard library. The file
+# exists so the image build has a pinned, hash-checked install step (and so an
+# added dependency must be recorded here with hashes).
+#
+# The ASGI production server is optional and lives in requirements-server.txt.

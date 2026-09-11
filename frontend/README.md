@@ -55,8 +55,9 @@ worked around:
   optional `source_id` filter, so a batch is never addressed by a hand-copied
   id. The other screens still filter by an already-known `batch_id`.
 - **Pipeline execution is not an HTTP operation** in v1.0 (Architecture §37,
-  §2157, tracked as EMM-110), so a batch created here stays `RECEIVED` until the
-  repository's pipeline runner is invoked. `/ingest` says so explicitly.
+  §39, EMM-110 resolved), so a batch created here stays `RECEIVED` until the
+  operator runs `python -m ledger.pipeline process`. `/ingest` says so
+  explicitly and names the command.
 
 ## End-to-end tests
 
@@ -174,9 +175,10 @@ npx vercel deploy --prod --yes
 ## Not done in this pass
 
 - Playwright/Remotion demo capture — explicitly out of scope.
-- No processing trigger exists, so the dashboard cannot advance a batch from
-  `RECEIVED` to reconciliation. Adding one is an API/architecture decision, not
-  a frontend decision; see the note in the `/ingest` screen. Tracked as EMM-110.
+- Batch progression is deliberately out of band (EMM-110, resolved in
+  `Architecture.md` §39): the operator runs
+  `python -m ledger.pipeline process`, and the dashboard reads the resulting
+  state. No HTTP processing trigger exists, and the `/ingest` screen says so.
 
 ## Service defects found by the end-to-end pass
 

@@ -1,0 +1,15 @@
+# Operator batch progression (EMM-110). This is a template, not a scheduler:
+# the supported invocation is an explicit operator or job-runner command.
+# Replace %i with a batch id, or drop --batch to select by state.
+[Unit]
+Description=Advance a LEDGER batch through the processing pipeline
+After=ledger.service
+
+[Service]
+Type=oneshot
+User=ledger
+Group=ledger
+EnvironmentFile=/etc/ledger/ledger.env
+ExecStart=/opt/ledger/.venv/bin/python -m ledger.pipeline process \
+  --database /var/lib/ledger/ledger.sqlite3 --state VALIDATED
+SuccessExitStatus=0

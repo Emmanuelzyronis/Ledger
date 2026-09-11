@@ -1,0 +1,103 @@
+# LEDGER CI (Epic 7 / EMM-83).
+#
+# Four gates: backend regression, frontend contract+build, security scanning,
+# and a reproducible release artifact with a rollback check. Scanning is
+# required here (`--require-tools`), so the pipeline cannot silently stop
+# scanning if a tool fails to install.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Regression suite
+        run: make check
+      - name: Product proof
+        run: PYTHONPATH=src python3 product_proof/run_product_proof.py
+      - name: Database operations drill
+        run: make db-drill
+      - name: Observability proof
+        run: make observability-proof
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ledger-evidence
+          path: evidence/
+
+  release-artifact:
+    runs-on: ubuntu-24.04
+    needs: backend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build and verify artifact
+        run: make release-check
+      - name: Rollback check
+        run: |
+          python3 scripts/release.py build --version 0.0.0 --output dist
+          python3 scripts/release.py rollback \
+            --artifact dist/ledger-0.0.0.tar.gz --target /tmp/ledger-rollback --force
+          test -f /tmp/ledger-rollback/VERSION
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ledger-release
+          path: |
+            dist/
+            evidence/release-*.json
+
+  security:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install scanners
+        run: pip install bandit pip-audit
+      - name: Install trivy
+        uses: aquasecurity/setup-trivy@v0.2.2
+      - name: Scan
+        run: python3 scripts/scan.py --require-tools
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ledger-security
+          path: evidence/security-scan.json
+
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Contract-checked build
+        run: npm run check
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end proof
+        run: npm run test:e2e

@@ -772,7 +772,7 @@ class ReconciliationRepository(_Repository):
         ordered = sorted(canonical_ids)
         placeholders = ",".join("?" for _ in ordered)
         rows = self.connection.execute(
-            f"SELECT reconciliation_id FROM reconciliations "
+            f"SELECT reconciliation_id FROM reconciliations "  # nosec B608 - {placeholders} counts bound "?" markers
             f"WHERE (source_a_record_id IN ({placeholders}) OR source_b_record_id IN ({placeholders})) "
             f"AND NOT EXISTS (SELECT 1 FROM reconciliations AS superseder "
             f" WHERE superseder.supersedes_reconciliation_id = reconciliations.reconciliation_id) "

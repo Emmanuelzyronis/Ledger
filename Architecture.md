@@ -1658,6 +1658,20 @@ Each stage should expose explicit input/output contracts.
 
 Stages may initially execute in one process while retaining boundaries that allow future parallelization.
 
+**Operator execution rule (resolved, EMM-110).** The controlled pipeline runner is
+an **out-of-band operator entrypoint**, not an HTTP operation. The HTTP service
+is the data plane: `POST /v1/batches` and `POST /v1/batches/{batch_id}/records`
+create and preserve raw evidence and never advance a batch. Batch progression is
+performed by the published runner `python -m ledger.pipeline process`, which
+selects batches by id or by state, is idempotent on re-run, records an explicit
+`processing_attempts` row for every run, and reports failures through explicit
+batch states (`FAILED`/`PARTIAL`, or an unchanged retryable state when
+validation itself did not complete) plus a non-zero exit code. There is no
+second processing rule: no HTTP processing trigger exists in v1.0, and the
+dashboard reads state rather than starting work. A late arrival arrives as a new
+batch; matching re-evaluates and supersedes the affected decision under LA-1
+while earlier batch summaries remain historical.
+
 ---
 
 # 40. Pipeline Checkpointing

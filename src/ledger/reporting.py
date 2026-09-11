@@ -52,6 +52,21 @@ def _redact_export(value: Any) -> Any:
     return value
 
 
+ALLOWED_PROJECTION_TABLES = frozenset(
+    {
+        "batches",
+        "raw_records",
+        "canonical_transactions",
+        "reconciliations",
+        "discrepancies",
+        "resolutions",
+        "audit_events",
+        "sources",
+        "validation_results",
+    }
+)
+
+
 class ReportingService:
     """Build disposable projections; this service never writes business tables."""
 
@@ -59,7 +74,11 @@ class ReportingService:
         self.database = database
 
     def _rows(self, table: str, where: str = "", params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
-        rows = self.database.connection.execute(f"SELECT * FROM {table}{where}", params).fetchall()
+        if table not in ALLOWED_PROJECTION_TABLES:
+            raise ValueError(f"refusing to project unknown table {table!r}")
+        # `table` is validated against ALLOWED_PROJECTION_TABLES and every caller
+        # passes a literal `where` fragment containing only bound "?" markers.
+        rows = self.database.connection.execute(f"SELECT * FROM {table}{where}", params).fetchall()  # nosec B608 - table is allowlisted; where is literal
         return [_normalized_row(row) for row in rows]
 
     def batch_status(self, batch_id: str) -> dict[str, Any] | None:
