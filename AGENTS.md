@@ -2,7 +2,9 @@
 
 ## Repository frontier
 
-Layers 1-15 are implemented and verified: Foundation, Domain Model, Persistence, Raw Ingestion, Validation, Normalization, Identity, Candidate Generation, Matching, Reconciliation, Resolution + Audit, API + Reporting, Performance, Failure Verification, and Product Proof. Do not restart completed layers. No post-Layer-15 implementation layer is authorized; stop after the Layer 15 completion report.
+Layers 1-15 are implemented and verified: Foundation, Domain Model, Persistence, Raw Ingestion, Validation, Normalization, Identity, Candidate Generation, Matching, Reconciliation, Resolution + Audit, API + Reporting, Performance, Failure Verification, and Product Proof. Do not restart completed layers.
+
+Post-Layer-15 work is organized as the **LEDGER Production Readiness** program (Linear project `LEDGER Production Readiness`) and is executed one epic at a time under the same authority, invariant, verification, and stop-condition rules as the layers. Epics 1-4 are complete: baseline + late-arrival architecture correction (LA-1), service entrypoint and process model, authentication/authorization/request hardening, and the versioned OpenAPI contract. The next authorized epic is Epic 5 (database operations), followed by observability, deployment, staging, and rollout. Do not start an epic that is not authorized in that project, and do not skip ahead of the current epic.
 
 ## 1. Project Identity
 

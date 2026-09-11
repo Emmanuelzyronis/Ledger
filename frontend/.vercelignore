@@ -1,0 +1,2 @@
+# Local build metadata; never needed by the remote build.
+tsconfig.tsbuildinfo

@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+next-env.d.ts
+tsconfig.tsbuildinfo
+npm-debug.log*
+.vercel
+.env
+.env.local
+.env.*.local
+.env*
+# The template is intentionally tracked; only real environment files are ignored.
+!.env.example

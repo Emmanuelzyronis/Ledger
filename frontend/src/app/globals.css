@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-surface-muted font-sans text-sm text-ink antialiased;
+  }
+
+  a {
+    @apply text-accent underline-offset-2;
+  }
+
+  a:hover {
+    @apply text-accent-hover underline;
+  }
+
+  :focus-visible {
+    @apply outline outline-2 outline-offset-1 outline-accent;
+  }
+
+  table {
+    @apply w-full border-collapse;
+  }
+}

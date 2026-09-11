@@ -56,4 +56,24 @@ Run the repository checks with:
 make check
 ```
 
+## Frontend dashboard
+
+`frontend/` holds the Next.js (App Router) reconciliation dashboard. It consumes
+only the published `/v1` contract and generates its typed client from
+`docs/openapi/ledger.v1.json` — the API types and the operation index are build
+artifacts, not hand-written code.
+
+```sh
+cd frontend
+npm install
+npm run check          # generate:api + typecheck + lint + vitest + next build
+npm run dev            # dashboard on http://127.0.0.1:3000
+```
+
+Current state: EMM-104 (scaffold and contract-checked typed client) is complete;
+the EMM-105 skeleton renders every screen from placeholder data, and the live
+`/v1` wiring and end-to-end tests remain. `npm run generate:api` must be re-run
+whenever `docs/openapi/ledger.v1.json` changes; `tests/contract-drift.test.ts`
+fails the build if it is not. See `frontend/README.md`.
+
 Secrets are supplied through the runtime environment or a secret manager. Do not commit `.env` files or credentials.
