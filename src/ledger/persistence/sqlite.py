@@ -14,6 +14,7 @@ from enum import Enum
 from dataclasses import replace
 import json
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Any, Iterator
 from collections.abc import Mapping
@@ -95,12 +96,60 @@ def _parse_timestamp(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value) if value is not None else None
 
 
+class _SynchronizedConnection:
+    """Serialize access to one SQLite connection shared across service threads.
+
+    A service process may serve requests on worker threads while the SQLite
+    connection is shared. SQLite requires serialized access on a single
+    connection, so every operation acquires one re-entrant lock. The lock is
+    re-entrant so a transaction may nest statement execution.
+    """
+
+    def __init__(self, connection: sqlite3.Connection, lock: threading.RLock) -> None:
+        object.__setattr__(self, "_connection", connection)
+        object.__setattr__(self, "_lock", lock)
+
+    def execute(self, *args: Any) -> sqlite3.Cursor:
+        with self._lock:
+            return self._connection.execute(*args)
+
+    def executescript(self, *args: Any) -> sqlite3.Cursor:
+        with self._lock:
+            return self._connection.executescript(*args)
+
+    def commit(self) -> None:
+        with self._lock:
+            self._connection.commit()
+
+    def rollback(self) -> None:
+        with self._lock:
+            self._connection.rollback()
+
+    def close(self) -> None:
+        with self._lock:
+            self._connection.close()
+
+    @property
+    def in_transaction(self) -> bool:
+        with self._lock:
+            return self._connection.in_transaction
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(object.__getattribute__(self, "_connection"), name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        with object.__getattribute__(self, "_lock"):
+            setattr(object.__getattribute__(self, "_connection"), name, value)
+
+
 class LedgerDatabase:
     """A strongly consistent relational store and repository registry."""
 
     def __init__(self, path: str | Path = ":memory:") -> None:
         self.path = str(path)
-        self.connection = sqlite3.connect(self.path)
+        self._lock = threading.RLock()
+        self.connection = _SynchronizedConnection(
+            sqlite3.connect(self.path, check_same_thread=False), self._lock)
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA foreign_keys = ON")
         self._create_schema()
@@ -129,18 +178,19 @@ class LedgerDatabase:
     def transaction(self) -> Iterator[sqlite3.Connection]:
         """Run a group of writes atomically, including state and audit rows."""
 
-        if self.connection.in_transaction:
-            yield self.connection
-            return
-        # Serialize writers so per-entity audit sequence allocation is safe.
-        self.connection.execute("BEGIN IMMEDIATE")
-        try:
-            yield self.connection
-        except Exception:
-            self.connection.rollback()
-            raise
-        else:
-            self.connection.commit()
+        with self._lock:
+            if self.connection.in_transaction:
+                yield self.connection
+                return
+            # Serialize writers so per-entity audit sequence allocation is safe.
+            self.connection.execute("BEGIN IMMEDIATE")
+            try:
+                yield self.connection
+            except Exception:
+                self.connection.rollback()
+                raise
+            else:
+                self.connection.commit()
 
     def _write(self, operation: Any) -> Any:
         if self.connection.in_transaction:

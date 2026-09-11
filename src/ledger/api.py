@@ -15,6 +15,15 @@ from .reporting import ReportingService
 from .resolution import ResolutionService
 
 
+def _header(headers: Mapping[str, str], name: str) -> str | None:
+    """HTTP header lookup is case-insensitive (RFC 7230 field-name rules)."""
+    target = name.casefold()
+    for key, value in headers.items():
+        if key.casefold() == target:
+            return value
+    return None
+
+
 class APIError(Exception):
     def __init__(self, status: int, code: str, message: str) -> None:
         self.status, self.code, self.message = status, code, message
@@ -37,7 +46,7 @@ class LedgerAPI:
         path = parsed.path
         if body is None and parsed.query:
             body = {key: values[-1] for key, values in parse_qs(parsed.query).items()}
-        correlation_id = headers.get("X-Correlation-ID") or str(uuid.uuid4())
+        correlation_id = _header(headers, "X-Correlation-ID") or str(uuid.uuid4())
         try:
             principal = self._authenticate(headers)
             result = self._dispatch(method.upper(), path.strip("/"), body, principal)
@@ -51,7 +60,7 @@ class LedgerAPI:
             return 400, {"error": {"code": "invalid_request", "message": str(exc)}, "correlation_id": correlation_id}
 
     def _authenticate(self, headers: Mapping[str, str]) -> Mapping[str, Any]:
-        value = headers.get("Authorization", "")
+        value = _header(headers, "Authorization") or ""
         if not value.startswith("Bearer "):
             raise APIError(401, "authentication_required", "bearer authentication is required")
         principal = self.token_verifier(value[7:].strip())

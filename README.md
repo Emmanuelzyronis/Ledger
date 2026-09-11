@@ -25,6 +25,25 @@ signatures, stage latency/throughput, peak memory, candidate distributions, and 
 
 Current verification: 117 tests pass; `make check`, `python3 -m compileall src tests benchmarks product_proof`, and `git diff --check` also pass. Late-arrival reconciliation supersession follows the LA-1 rule in `Architecture.md` §28.1.
 
+## Running the service
+
+The service is a single-process ASGI application with synchronous,
+request-scoped execution. Run it locally with the dependency-free runner:
+
+```sh
+PYTHONPATH=src LEDGER_DATABASE_PATH=ledger.sqlite3 python3 -m ledger
+```
+
+or serve the same application with any ASGI server:
+
+```sh
+uvicorn ledger.service:create_app --factory
+```
+
+`GET /health` (liveness) and `GET /ready` (readiness) are public; all other
+endpoints require bearer authentication. Configuration, process model, and
+shutdown behavior are documented in `docs/service.md`.
+
 Run the repository checks with:
 
 ```sh

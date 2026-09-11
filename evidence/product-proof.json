@@ -41,12 +41,12 @@
         {
           "batch_id": "pf-batch-a",
           "evidence": {
-            "evaluated_at": "2026-09-11T03:56:13.722809+00:00",
+            "evaluated_at": "2026-09-11T04:06:48.207321+00:00",
             "outcome": "INVALID",
             "validation": "INVALID",
             "validation_version": "validation_v1"
           },
-          "evidence_json": "{\"evaluated_at\":\"2026-09-11T03:56:13.722809+00:00\",\"outcome\":\"INVALID\",\"validation\":\"INVALID\",\"validation_version\":\"validation_v1\"}",
+          "evidence_json": "{\"evaluated_at\":\"2026-09-11T04:06:48.207321+00:00\",\"outcome\":\"INVALID\",\"validation\":\"INVALID\",\"validation_version\":\"validation_v1\"}",
           "outcome": "INVALID",
           "raw_record_id": "raw:source-a:source_a.v1:2c1775344778844e858c1cd520c554f3fffa978f25fc4259375aeb170d800e8a",
           "reconciliation_id": "reconciliation:9a9527532753aeb5f4b5374725d7ba91bb40eac0cb5ffb974f06ef9b3a535106",
@@ -151,7 +151,7 @@
       "description": "operator resolution for A006 is accepted through the API",
       "detail": {
         "body": {
-          "correlation_id": "9a8c4d58-5b27-45de-adc3-fd29cce8e94c",
+          "correlation_id": "9201cae5-5705-45af-a2a8-4e6d4641af5b",
           "data": {
             "discrepancy": {
               "discrepancy_id": "discrepancy:30ae8c1e25a4bf97e4e7b60b03b9be86e2bd3ca963a94310d18a0fc0359b57c0",
@@ -205,7 +205,7 @@
             },
             "resolution": {
               "actor": "reconciliation_operator",
-              "created_at": "2026-09-11T03:56:13.733504+00:00",
+              "created_at": "2026-09-11T04:06:48.218784+00:00",
               "discrepancy_id": "discrepancy:30ae8c1e25a4bf97e4e7b60b03b9be86e2bd3ca963a94310d18a0fc0359b57c0",
               "evidence": {},
               "reason": "reference verified; amount variance accepted",
