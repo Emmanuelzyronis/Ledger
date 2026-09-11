@@ -67,8 +67,8 @@ hypercorn, or any ASGI-compatible server without changing the domain code.
 
 ## Health and readiness
 
-- `GET /health` — **liveness**: the process is responsive. Unauthenticated.
-- `GET /ready` — **readiness**: application *and* authoritative database are
+- `GET /v1/health` — **liveness**: the process is responsive. Unauthenticated.
+- `GET /v1/ready` — **readiness**: application *and* authoritative database are
   available. Unauthenticated. Returns HTTP 503 with
   `{"database": "unavailable"}` when the database cannot be reached.
 

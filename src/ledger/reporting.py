@@ -21,6 +21,29 @@ def _json_value(value: Any) -> Any:
     return value
 
 
+def _normalized_row(row: Any) -> dict[str, Any]:
+    """Expose storage-encoded ``*_json`` columns as structured JSON.
+
+    Persistence stores structured fields (batch counters, reconciliation
+    evidence, audit metadata) as JSON text columns. The public read contract
+    exposes them as JSON values under the base name, so clients never parse
+    storage encodings. A value that is not valid JSON is passed through
+    unchanged rather than hidden.
+    """
+    result: dict[str, Any] = {}
+    for key in row.keys():
+        value = _json_value(row[key])
+        if key.endswith("_json") and isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                pass
+            result[key[: -len("_json")]] = value
+        else:
+            result[key] = value
+    return result
+
+
 def _redact_export(value: Any) -> Any:
     if isinstance(value, dict):
         return {k: "[REDACTED]" if any(term in str(k).casefold() for term in ("payload", "description", "secret", "token", "credential")) else _redact_export(v) for k, v in value.items()}
@@ -37,16 +60,11 @@ class ReportingService:
 
     def _rows(self, table: str, where: str = "", params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
         rows = self.database.connection.execute(f"SELECT * FROM {table}{where}", params).fetchall()
-        return [{key: _json_value(row[key]) for key in row.keys()} for row in rows]
+        return [_normalized_row(row) for row in rows]
 
     def batch_status(self, batch_id: str) -> dict[str, Any] | None:
         rows = self._rows("batches", " WHERE batch_id = ?", (batch_id,))
-        if not rows:
-            return None
-        result = rows[0]
-        counters = result.pop("counters_json", "{}")
-        result["counters"] = json.loads(counters) if isinstance(counters, str) else counters
-        return result
+        return rows[0] if rows else None
 
     def reconciliations(self, *, batch_id: str | None = None) -> list[dict[str, Any]]:
         where = " WHERE batch_id = ?" if batch_id else ""
@@ -68,8 +86,7 @@ class ReportingService:
             sql += " AND batch_id = ?"
             params = (batch_id,)
         sql += " ORDER BY reconciliation_id"
-        return [{key: _json_value(row[key]) for key in row.keys()}
-                for row in self.database.connection.execute(sql, params).fetchall()]
+        return [_normalized_row(row) for row in self.database.connection.execute(sql, params).fetchall()]
 
     def discrepancies(self, *, batch_id: str | None = None) -> list[dict[str, Any]]:
         if batch_id:

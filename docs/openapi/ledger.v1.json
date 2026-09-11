@@ -1,0 +1,2003 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "info": {
+    "title": "LEDGER Reconciliation API",
+    "version": "1.0.0",
+    "summary": "Deterministic, auditable 1:1 transaction reconciliation over a versioned HTTP contract.",
+    "description": "LEDGER ingests independent Source A and Source B transaction records, preserves raw evidence, validates and normalizes into a canonical model, generates bounded candidates, applies deterministic matching, classifies seven reconciliation outcomes, records discrepancies, accepts authorized resolutions, and derives reports and exports from authoritative state.\n\n## Versioning policy\n\n* The published contract is **`/v1`**. It is the only version served.\n* A request whose first path segment is a version-looking token other than `v1` (for example `/v2/reports`) is rejected with `404` and error code `unsupported_api_version`. It is never silently answered by `v1`.\n* Backward-compatible changes may be made in place inside `/v1`: adding endpoints, adding optional request fields, adding response fields, adding members to open enum sets. Every such change updates this document's `info.version`.\n* Breaking changes require a new `/v2` prefix: removing or renaming a field, changing a field's type or meaning, tightening validation, or changing the status code for an existing condition.\n* Unversioned API paths (for example `/reports`) are accepted by the service boundary as a compatibility alias for `/v1`. **They are not part of this contract.** Integrations must call `/v1`.\n\n## Authentication and authorization\n\nEvery operation except the `/v1/health` and `/v1/ready` probes requires `Authorization: Bearer <token>`. A token is either an opaque token resolved by the configured verifier or an HMAC-signed token of the form `v1.<base64url-payload>.<base64url-signature>` when `LEDGER_TOKEN_SECRET` is configured. Principals carry roles and an optional `source_ids` scope. Reads are restricted to the caller's source scope; resolving a discrepancy additionally requires the `reconciliation_operator` role.\n\n## Errors\n\nEvery error response has the shape `{\"error\": {\"code\": \"...\", \"message\": \"...\"}, \"correlation_id\": \"...\"}`. `code` is machine-readable and stable; `message` is human-readable and not stable. The complete set of codes served by `/v1` is listed in `x-ledger-error-codes`.\n\n## Correlation\n\nSend `X-Correlation-ID` to correlate a request across logs; it is echoed in the response body. If it is absent the service generates one.\n\n## Exports\n\n`GET /v1/export` is a read-only projection. Raw payloads and sensitive-looking fields are redacted to `[REDACTED]`; exports are never authoritative state.",
+    "license": {
+      "name": "Proprietary"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8080",
+      "description": "Local service (default bind)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "System",
+      "description": "Unauthenticated liveness and readiness probes."
+    },
+    {
+      "name": "Ingestion",
+      "description": "Source registration, batch creation, and raw record ingestion."
+    },
+    {
+      "name": "Reporting",
+      "description": "Read-only derived projections over authoritative state."
+    },
+    {
+      "name": "Resolution",
+      "description": "Authorized resolution of open discrepancies."
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "x-ledger-versioning": {
+    "current": "v1",
+    "supported": [
+      "v1"
+    ],
+    "unknown_version_status": 404,
+    "unknown_version_code": "unsupported_api_version",
+    "unversioned_alias": "v1",
+    "unversioned_alias_in_contract": false
+  },
+  "x-ledger-error-codes": [
+    "authentication_required",
+    "invalid_token",
+    "forbidden",
+    "origin_not_allowed",
+    "tls_required",
+    "rate_limited",
+    "payload_too_deep",
+    "payload_too_large",
+    "unsupported_media_type",
+    "invalid_json",
+    "missing_field",
+    "invalid_request",
+    "not_found",
+    "unsupported_api_version",
+    "internal_error"
+  ],
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "operationId": "getHealth",
+        "tags": [
+          "System"
+        ],
+        "summary": "Liveness probe",
+        "description": "Reports that the process is up. Exposes no business data and is exempt from TLS enforcement. Never requires authentication.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The process is running.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "data": {
+                    "status": "ok",
+                    "application": "ok"
+                  },
+                  "correlation_id": "health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/ready": {
+      "get": {
+        "operationId": "getReadiness",
+        "tags": [
+          "System"
+        ],
+        "summary": "Readiness probe",
+        "description": "Reports whether the process can serve authoritative reads. Returns `503` with `data.status: degraded` when the database is unavailable. Exempt from TLS enforcement and never requires authentication.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The database is reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "data": {
+                    "status": "ok",
+                    "application": "ok",
+                    "database": "ok"
+                  },
+                  "correlation_id": "ready"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database is unavailable; the body is still the health data shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "data": {
+                    "status": "degraded",
+                    "application": "ok",
+                    "database": "unavailable"
+                  },
+                  "correlation_id": "ready"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reports": {
+      "get": {
+        "operationId": "getReport",
+        "tags": [
+          "Reporting"
+        ],
+        "summary": "Reconciliation report",
+        "description": "Returns reconciliation counts by outcome. `outcomes` counts every decision version; `current_outcomes` counts only current (non-superseded) versions. A caller scoped to specific sources may only filter by a batch belonging to those sources.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/BatchIdQuery"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Derived report projection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/export": {
+      "get": {
+        "operationId": "exportData",
+        "tags": [
+          "Reporting"
+        ],
+        "summary": "Redacted export projection",
+        "description": "Returns the report, reconciliation rows, and discrepancy rows for the caller's scope, with raw payloads and sensitive-looking fields redacted to `[REDACTED]`. Read-only and never authoritative.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/BatchIdQuery"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Redacted export projection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/sources": {
+      "post": {
+        "operationId": "registerSource",
+        "tags": [
+          "Ingestion"
+        ],
+        "summary": "Register a data source",
+        "description": "Registers or re-registers a source and the schema versions it may declare. Registration is idempotent for identical input.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterSourceRequest"
+              },
+              "example": {
+                "source_id": "source-a",
+                "name": "Source A",
+                "schema_versions": [
+                  "source_a.v1"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The registered source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceResponse"
+                },
+                "example": {
+                  "data": {
+                    "source_id": "source-a",
+                    "name": "Source A",
+                    "schema_versions": [
+                      "source_a.v1"
+                    ],
+                    "active": true
+                  },
+                  "correlation_id": "2b7c0f2e-2a4c-4d5a-9f2f-2b0f9c2b1f11"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/batches": {
+      "post": {
+        "operationId": "createBatch",
+        "tags": [
+          "Ingestion"
+        ],
+        "summary": "Create an ingestion batch",
+        "description": "Creates a batch for a source and schema version. A caller scoped to specific sources may only create batches for those sources. `(source_id, external_batch_id, schema_version)` is unique.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBatchRequest"
+              },
+              "example": {
+                "source_id": "source-a",
+                "external_batch_id": "2026-09-11-a",
+                "schema_version": "source_a.v1"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The created batch with zeroed counters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/batches/{batch_id}/records": {
+      "post": {
+        "operationId": "ingestRecord",
+        "tags": [
+          "Ingestion"
+        ],
+        "summary": "Ingest one raw record",
+        "description": "Accepts one raw source record into a batch. `idempotency_key` makes a resubmission of identical content return the original result with `duplicate_submission: true` instead of creating a new raw record. A syntactically valid but semantically invalid record is preserved as raw evidence and reported with `status: INVALID`. Known limitation (EMM-103): resubmitting identical content into the *same* batch with a *different* idempotency key is not yet idempotent and surfaces as `500 internal_error`; resubmit with the original key, or target a different batch.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/BatchId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestRecordRequest"
+              },
+              "example": {
+                "payload": {
+                  "record_id": "A001",
+                  "occurred_at": "2026-09-01",
+                  "amount": "100.00",
+                  "currency": "USD",
+                  "direction": "CREDIT"
+                },
+                "idempotency_key": "batch-a:A001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The ingestion result. `duplicate_submission` distinguishes a resubmission from a first acceptance.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestionResultResponse"
+                },
+                "example": {
+                  "data": {
+                    "batch_id": "batch-17296c52c3d444b081f99b4aa189bd8a",
+                    "raw_record_id": "raw:source-a:source_a.v1:a01bb22d25d82ea63bb67529d4df8c97759e83467786abaa938fd7dcc8330985",
+                    "status": "ACCEPTED",
+                    "fingerprint": "a01bb22d25d82ea63bb67529d4df8c97759e83467786abaa938fd7dcc8330985",
+                    "invalid_reason": null,
+                    "duplicate_submission": false
+                  },
+                  "correlation_id": "8a1c3a5e-5b8d-4a5e-9a1f-3a8a0d0e6a11"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/batches/{batch_id}": {
+      "get": {
+        "operationId": "getBatch",
+        "tags": [
+          "Ingestion"
+        ],
+        "summary": "Get batch state and counters",
+        "description": "Returns the batch row plus its processing counters. A caller scoped to specific sources may only read batches belonging to those sources.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/BatchId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The batch and its counters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/reconciliations": {
+      "get": {
+        "operationId": "listReconciliations",
+        "tags": [
+          "Reporting"
+        ],
+        "summary": "List reconciliation decision rows",
+        "description": "Lists every reconciliation version, including superseded versions preserved as historical evidence. Each row carries `outcome` (one of the seven reconciliation outcomes), `state`, `evidence`, and — for superseding versions — `supersedes_reconciliation_id`. Use `current_outcomes` from `GET /v1/reports` for the current view.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/BatchIdQuery"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reconciliation rows visible to the caller's scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconciliationListResponse"
+                },
+                "example": {
+                  "data": [],
+                  "correlation_id": "0b7e5f0a-1a2b-4c3d-8e4f-5a6b7c8d9e0f"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/reconciliations/{reconciliation_id}": {
+      "get": {
+        "operationId": "getReconciliation",
+        "tags": [
+          "Reporting"
+        ],
+        "summary": "Get one reconciliation decision row",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ReconciliationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The reconciliation row.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconciliationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/discrepancies": {
+      "get": {
+        "operationId": "listDiscrepancies",
+        "tags": [
+          "Reporting"
+        ],
+        "summary": "List discrepancies",
+        "description": "Lists discrepancies raised by ambiguous or unresolved reconciliation decisions. `state` is `OPEN` until a resolution is applied.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/BatchIdQuery"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Discrepancy rows visible to the caller's scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscrepancyListResponse"
+                },
+                "example": {
+                  "data": [],
+                  "correlation_id": "6f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/discrepancies/{discrepancy_id}": {
+      "get": {
+        "operationId": "getDiscrepancy",
+        "tags": [
+          "Reporting"
+        ],
+        "summary": "Get one discrepancy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DiscrepancyId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The discrepancy row.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscrepancyResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/audit/{entity_type}/{entity_id}": {
+      "get": {
+        "operationId": "getAuditTrail",
+        "tags": [
+          "Reporting"
+        ],
+        "summary": "Get the append-only audit trail for an entity",
+        "description": "Returns audit events ordered by `sequence`. Audit history is append-only and never mutated. `metadata` is the structured form of the stored audit metadata.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/EntityType"
+          },
+          {
+            "$ref": "#/components/parameters/EntityId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit events for the entity (empty when none exist).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditListResponse"
+                },
+                "example": {
+                  "data": [],
+                  "correlation_id": "b1c2d3e4-f506-4718-9a2b-c3d4e5f60718"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/discrepancies/{discrepancy_id}/resolve": {
+      "post": {
+        "operationId": "resolveDiscrepancy",
+        "tags": [
+          "Resolution"
+        ],
+        "summary": "Apply an authorized resolution to a discrepancy",
+        "description": "Records an immutable resolution and transitions the discrepancy. The discrepancy must be `OPEN`. Requires the `reconciliation_operator` role. Resolving a reconciliation discrepancy creates a new superseding reconciliation version; the superseded version remains retrievable, and a repeated resolution request returns the already-recorded resolution and never overwrites history.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DiscrepancyId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveDiscrepancyRequest"
+              },
+              "example": {
+                "resolution_type": "MANUAL_APPROVED",
+                "reason": "Verified against the September bank statement.",
+                "evidence": {
+                  "reference": "stmt-2026-09"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The recorded resolution together with the updated discrepancy and resulting reconciliation version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolutionResultResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "opaque-token-or-v1.<payload>.<signature>",
+        "description": "Bearer token authenticated by the configured verifier. Signed tokens use `v1.<base64url-payload>.<base64url-HMAC-SHA256-signature>` and carry `subject`, `roles`, optional `source_ids`, and an expiry."
+      }
+    },
+    "parameters": {
+      "CorrelationId": {
+        "name": "X-Correlation-ID",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "description": "Client-supplied correlation identifier, echoed in the response body."
+      },
+      "BatchIdQuery": {
+        "name": "batch_id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Filter to one batch. The caller must be scoped to the batch's source."
+      },
+      "BatchId": {
+        "name": "batch_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Batch identifier returned by `POST /v1/batches`."
+      },
+      "ReconciliationId": {
+        "name": "reconciliation_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Reconciliation decision identifier."
+      },
+      "DiscrepancyId": {
+        "name": "discrepancy_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Discrepancy identifier from `GET /v1/discrepancies`."
+      },
+      "EntityType": {
+        "name": "entity_type",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Audit entity type, for example `batch`, `record`, `reconciliation`, `discrepancy`, or `resolution`."
+      },
+      "EntityId": {
+        "name": "entity_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Identifier of the audited entity."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Malformed request: invalid JSON, a missing required field, an invalid field value, or a body exceeding the configured JSON depth limit.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid bearer token.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated but not permitted: insufficient role, source outside caller scope, or a disallowed request origin.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "The endpoint, resource, or requested API version does not exist.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "PayloadTooLarge": {
+        "description": "Request body exceeds the configured byte limit.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "UnsupportedMediaType": {
+        "description": "A request body was sent without `Content-Type: application/json`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Request rate limit exceeded.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Unexpected server-side failure. The message is intentionally generic; use `correlation_id` to find the request in logs.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "CorrelationId": {
+        "type": "string",
+        "description": "Request correlation identifier."
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Stable machine-readable error code.",
+            "enum": [
+              "authentication_required",
+              "invalid_token",
+              "forbidden",
+              "origin_not_allowed",
+              "tls_required",
+              "rate_limited",
+              "payload_too_deep",
+              "payload_too_large",
+              "unsupported_media_type",
+              "invalid_json",
+              "missing_field",
+              "invalid_request",
+              "not_found",
+              "unsupported_api_version",
+              "internal_error"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable description; not stable."
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error",
+          "correlation_id"
+        ],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          },
+          "correlation_id": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "application"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ]
+          },
+          "application": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "unavailable"
+            ]
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "correlation_id"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Health"
+          },
+          "correlation_id": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      },
+      "RegisterSourceRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "name",
+          "schema_versions"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "schema_versions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "Source": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "name",
+          "schema_versions",
+          "active"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "schema_versions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SourceResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "correlation_id"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "correlation_id": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      },
+      "CreateBatchRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "external_batch_id",
+          "schema_version"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "external_batch_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "schema_version": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "BatchCounters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "received_count",
+          "accepted_count",
+          "rejected_input_count",
+          "invalid_count",
+          "processed_count",
+          "matched_count",
+          "mismatched_count",
+          "unmatched_count",
+          "ambiguous_count",
+          "duplicate_count",
+          "failed_count"
+        ],
+        "properties": {
+          "received_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "accepted_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "rejected_input_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "invalid_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "processed_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "matched_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mismatched_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unmatched_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ambiguous_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "duplicate_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failed_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "Batch": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "batch_id",
+          "source_id",
+          "external_batch_id",
+          "schema_version",
+          "received_at",
+          "state",
+          "counters",
+          "started_at",
+          "completed_at",
+          "error_summary"
+        ],
+        "properties": {
+          "batch_id": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "external_batch_id": {
+            "type": "string"
+          },
+          "schema_version": {
+            "type": "string"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "RECEIVED",
+              "VALIDATING",
+              "VALIDATED",
+              "REJECTED",
+              "PROCESSING",
+              "COMPLETED",
+              "PARTIAL",
+              "FAILED"
+            ]
+          },
+          "counters": {
+            "$ref": "#/components/schemas/BatchCounters"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "error_summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "BatchResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "correlation_id"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Batch"
+          },
+          "correlation_id": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      },
+      "IngestRecordRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "payload"
+        ],
+        "properties": {
+          "payload": {
+            "type": "object",
+            "description": "Source-native record. Field names and required keys are defined by the batch's `schema_version`; the payload is preserved verbatim as raw evidence.",
+            "additionalProperties": true
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Optional client key that makes a repeated submission of identical content return the original result."
+          }
+        }
+      },
+      "IngestionResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "batch_id",
+          "raw_record_id",
+          "status",
+          "fingerprint",
+          "invalid_reason",
+          "duplicate_submission"
+        ],
+        "properties": {
+          "batch_id": {
+            "type": "string"
+          },
+          "raw_record_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACCEPTED",
+              "INVALID"
+            ]
+          },
+          "fingerprint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "invalid_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duplicate_submission": {
+            "type": "boolean"
+          }
+        }
+      },
+      "IngestionResultResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "correlation_id"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/IngestionResult"
+          },
+          "correlation_id": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      },
+      "SourceWatermark": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_count",
+          "timestamp"
+        ],
+        "properties": {
+          "event_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "timestamp": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "Report": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "batch_id",
+          "reconciliation_count",
+          "outcomes",
+          "current_reconciliation_count",
+          "current_outcomes",
+          "discrepancy_count",
+          "source_watermark"
+        ],
+        "properties": {
+          "batch_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reconciliation_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "outcomes": {
+            "$ref": "#/components/schemas/OutcomeCounts"
+          },
+          "current_reconciliation_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "current_outcomes": {
+            "$ref": "#/components/schemas/OutcomeCounts"
+          },
+          "discrepancy_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "source_watermark": {
+            "$ref": "#/components/schemas/SourceWatermark"
+          }
+        }
+      },
+      "OutcomeCounts": {
+        "type": "object",
+        "description": "Counts keyed by reconciliation outcome. Absent outcomes are omitted rather than reported as zero.",
+        "propertyNames": {
+          "enum": [
+            "MATCHED",
+            "MISMATCHED",
+            "UNMATCHED_A",
+            "UNMATCHED_B",
+            "AMBIGUOUS",
+            "DUPLICATE",
+            "INVALID"
+          ]
+        },
+        "additionalProperties": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "ReportResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "correlation_id"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Report"
+          },
+          "correlation_id": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      },
+      "Reconciliation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reconciliation_id",
+          "batch_id",
+          "source_a_record_id",
+          "source_b_record_id",
+          "raw_record_id",
+          "reconciliation_version",
+          "rule_version",
+          "evidence",
+          "state",
+          "outcome",
+          "supersedes_reconciliation_id",
+          "resolution_id"
+        ],
+        "properties": {
+          "reconciliation_id": {
+            "type": "string"
+          },
+          "batch_id": {
+            "type": "string"
+          },
+          "source_a_record_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_b_record_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "raw_record_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reconciliation_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "rule_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "EVALUATING",
+              "MATCHED",
+              "MISMATCHED",
+              "UNMATCHED_A",
+              "UNMATCHED_B",
+              "AMBIGUOUS",
+              "DUPLICATE",
+              "INVALID",
+              "RESOLVED"
+            ]
+          },
+          "outcome": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "MATCHED",
+              "MISMATCHED",
+              "UNMATCHED_A",
+              "UNMATCHED_B",
+              "AMBIGUOUS",
+              "DUPLICATE",
+              "INVALID",
+              null
+            ]
+          },
+          "supersedes_reconciliation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resolution_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ReconciliationResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "correlation_id"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Reconciliation"
+          },
+          "correlation_id": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      },
+      "ReconciliationListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "correlation_id"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reconciliation"
+            }
+          },
+          "correlation_id": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      },
+      "Discrepancy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "discrepancy_id",
+          "reconciliation_id",
+          "reason",
+          "state"
+        ],
+        "properties": {
+          "discrepancy_id": {
+            "type": "string"
+          },
+          "reconciliation_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "DEFERRED",
+              "RESOLVED",
+              "REJECTED"
+            ]
+          }
+        }
+      },
+      "DiscrepancyResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "correlation_id"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Discrepancy"
+          },
+          "correlation_id": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      },
+      "DiscrepancyListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "correlation_id"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Discrepancy"
+            }
+          },
+          "correlation_id": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      },
+      "Export": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "report",
+          "reconciliations",
+          "discrepancies"
+        ],
+        "properties": {
+          "report": {
+            "$ref": "#/components/schemas/Report"
+          },
+          "reconciliations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reconciliation"
+            }
+          },
+          "discrepancies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Discrepancy"
+            }
+          }
+        }
+      },
+      "ExportResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "correlation_id"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Export"
+          },
+          "correlation_id": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      },
+      "AuditEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id",
+          "entity_type",
+          "entity_id",
+          "event_type",
+          "actor",
+          "timestamp",
+          "sequence",
+          "stage_version",
+          "metadata",
+          "previous_state",
+          "new_state",
+          "batch_id",
+          "attempt_id",
+          "record_id",
+          "reconciliation_id",
+          "causation_event_id"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string"
+          },
+          "entity_type": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "event_type": {
+            "type": "string"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "stage_version": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "previous_state": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "new_state": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "batch_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attempt_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reconciliation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "causation_event_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "AuditListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "correlation_id"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEvent"
+            }
+          },
+          "correlation_id": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      },
+      "ResolveDiscrepancyRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resolution_type",
+          "reason"
+        ],
+        "properties": {
+          "resolution_type": {
+            "type": "string",
+            "enum": [
+              "AUTOMATIC",
+              "MANUAL_APPROVED",
+              "REJECTED",
+              "DEFERRED"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Optional structured justification recorded immutably with the resolution."
+          },
+          "rule_version": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "Resolution": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resolution_id",
+          "discrepancy_id",
+          "reconciliation_id",
+          "resolution_type",
+          "actor",
+          "reason",
+          "created_at",
+          "evidence",
+          "rule_version"
+        ],
+        "properties": {
+          "resolution_id": {
+            "type": "string"
+          },
+          "discrepancy_id": {
+            "type": "string"
+          },
+          "reconciliation_id": {
+            "type": "string"
+          },
+          "resolution_type": {
+            "type": "string",
+            "enum": [
+              "AUTOMATIC",
+              "MANUAL_APPROVED",
+              "REJECTED",
+              "DEFERRED"
+            ]
+          },
+          "actor": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "rule_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ResolutionResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resolution",
+          "discrepancy",
+          "reconciliation"
+        ],
+        "properties": {
+          "resolution": {
+            "$ref": "#/components/schemas/Resolution"
+          },
+          "discrepancy": {
+            "$ref": "#/components/schemas/Discrepancy"
+          },
+          "reconciliation": {
+            "$ref": "#/components/schemas/Reconciliation"
+          }
+        }
+      },
+      "ResolutionResultResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "correlation_id"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ResolutionResult"
+          },
+          "correlation_id": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      }
+    }
+  }
+}

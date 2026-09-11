@@ -23,7 +23,7 @@ indexed candidate generation, matching/reconciliation, and resolution. It record
 signatures, stage latency/throughput, peak memory, candidate distributions, and environment metadata in
 `evidence/performance-baseline.json`; methodology is documented in `docs/performance.md`.
 
-Current verification: 117 tests pass; `make check`, `python3 -m compileall src tests benchmarks product_proof`, and `git diff --check` also pass. Late-arrival reconciliation supersession follows the LA-1 rule in `Architecture.md` §28.1.
+Current verification: 163 tests pass; `make check`, `python3 -m compileall src tests benchmarks product_proof`, and `git diff --check` also pass. Late-arrival reconciliation supersession follows the LA-1 rule in `Architecture.md` §28.1.
 
 ## Running the service
 
@@ -40,9 +40,15 @@ or serve the same application with any ASGI server:
 uvicorn ledger.service:create_app --factory
 ```
 
-`GET /health` (liveness) and `GET /ready` (readiness) are public; all other
-endpoints require bearer authentication. Configuration, process model, and
-shutdown behavior are documented in `docs/service.md`.
+`GET /v1/health` (liveness) and `GET /v1/ready` (readiness) are public; all
+other `/v1` endpoints require bearer authentication. Configuration, process
+model, and shutdown behavior are documented in `docs/service.md`.
+
+The published HTTP contract is `docs/openapi/ledger.v1.json` (OpenAPI 3.1).
+`/v1` is the only supported version; a version-looking prefix other than `v1`
+is rejected with `404 unsupported_api_version`. Versioning policy, status/error
+contract, and known limitations are documented in `docs/api-contract.md` and
+guarded by `tests/test_openapi_contract.py`.
 
 Run the repository checks with:
 

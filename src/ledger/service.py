@@ -19,6 +19,7 @@ from dataclasses import dataclass, field, replace
 import json
 import os
 import threading
+import uuid
 from typing import Any, Callable, Mapping
 from urllib.parse import urlsplit
 
@@ -31,6 +32,11 @@ from .security import HmacTokenVerifier, Principal, SecurityPolicy, StaticTokenV
 MAX_PORT = 65535
 PUBLIC_PATHS = {"health", "ready"}
 JSON_CONTENT_TYPE = "application/json"
+API_VERSION_PREFIX = "v1"
+
+
+def _looks_like_version(segment: str) -> bool:
+    return len(segment) > 1 and segment[0] == "v" and segment[1:].isdigit()
 
 
 def _header(headers: Mapping[str, str], name: str) -> str | None:
@@ -274,34 +280,51 @@ class LedgerService:
     def _handle(self, method: str, path: str, body: Any, headers: Mapping[str, str] | None,
                 client: str | None, scheme: str) -> tuple[int, dict[str, Any]]:
         headers = headers or {}
-        route = urlsplit(path).path.strip("/")
+        correlation_id = _header(headers, "X-Correlation-ID") or str(uuid.uuid4())
+        parsed = urlsplit(path)
+        segments = [segment for segment in parsed.path.strip("/").split("/") if segment]
+        if segments and segments[0] == API_VERSION_PREFIX:
+            segments = segments[1:]
+        elif segments and _looks_like_version(segments[0]):
+            return 404, self._failure("unsupported_api_version",
+                                      f"only /{API_VERSION_PREFIX} is supported", correlation_id)
+        route = segments[0] if segments else ""
+        normalized = "/" + "/".join(segments)
+        if parsed.query:
+            normalized = f"{normalized}?{parsed.query}"
         origin = _header(headers, "Origin")
         if not self.security.origin_allowed(origin):
-            return 403, self._failure("origin_not_allowed", "request origin is not allowed")
+            return 403, self._failure("origin_not_allowed", "request origin is not allowed", correlation_id)
         # Unauthenticated liveness/readiness probes are exempt from TLS so a
         # platform can probe the pod directly; they expose no business data.
         if route not in PUBLIC_PATHS and not self.security.transport_ok(scheme, _header(headers, "X-Forwarded-Proto")):
-            return 400, self._failure("tls_required", "HTTPS is required for this environment")
+            return 400, self._failure("tls_required", "HTTPS is required for this environment", correlation_id)
         if not self.security.rate_limiter.allow(client or "unknown"):
-            return 429, self._failure("rate_limited", "request rate limit exceeded")
+            return 429, self._failure("rate_limited", "request rate limit exceeded", correlation_id)
         if body is not None and not self.security.json_depth_ok(body):
-            return 400, self._failure("payload_too_deep", "request body exceeds the JSON depth limit")
+            return 400, self._failure("payload_too_deep", "request body exceeds the JSON depth limit", correlation_id)
         if body is not None and method.upper() in {"POST", "PUT", "PATCH"}:
             content_type = (_header(headers, "Content-Type") or "").split(";")[0].strip().lower()
             if content_type != JSON_CONTENT_TYPE:
-                return 415, self._failure("unsupported_media_type", "request body must be application/json")
+                return 415, self._failure("unsupported_media_type", "request body must be application/json", correlation_id)
         if method.upper() == "OPTIONS":
             return 204, {"data": {}}
         if method.upper() == "GET" and route in PUBLIC_PATHS:
             return self._public_probe(route)
+        # Propagate one correlation id across the service and API layers so an
+        # error returned by either boundary carries the same identifier.
+        api_headers = dict(headers)
+        api_headers["X-Correlation-ID"] = correlation_id
         try:
-            return self.api.handle(method, path, body, headers)
+            return self.api.handle(method, normalized, body, api_headers)
         except APIError as exc:
-            return exc.status, {"error": {"code": exc.code, "message": exc.message}}
+            return exc.status, {"error": {"code": exc.code, "message": exc.message},
+                                "correlation_id": correlation_id}
 
     @staticmethod
-    def _failure(code: str, message: str) -> dict[str, Any]:
-        return {"error": {"code": code, "message": message}}
+    def _failure(code: str, message: str, correlation_id: str | None = None) -> dict[str, Any]:
+        return {"error": {"code": code, "message": message},
+                "correlation_id": correlation_id or str(uuid.uuid4())}
 
     def _public_probe(self, route: str) -> tuple[int, dict[str, Any]]:
         if route == "health":
@@ -359,6 +382,7 @@ class LedgerASGI:
                     send: Callable[[Mapping[str, Any]], Any]) -> None:
         headers = {key.decode("latin-1"): value.decode("latin-1") for key, value in scope.get("headers", [])}
         response_headers = self.service.security_headers(_header(headers, "Origin"))
+        correlation_id = _header(headers, "X-Correlation-ID") or str(uuid.uuid4())
         body = b""
         more = True
         while more:
@@ -369,7 +393,8 @@ class LedgerASGI:
             more = message.get("more_body", False)
             if not self.service.security.body_size_ok(len(body)):
                 await self._respond(send, 413, {"error": {"code": "payload_too_large",
-                                                          "message": "request body exceeds the configured limit"}},
+                                                          "message": "request body exceeds the configured limit"},
+                                                "correlation_id": correlation_id},
                                     response_headers)
                 return
         payload: Any = None
@@ -377,7 +402,8 @@ class LedgerASGI:
             try:
                 payload = json.loads(body)
             except (UnicodeDecodeError, json.JSONDecodeError):
-                await self._respond(send, 400, {"error": {"code": "invalid_json", "message": "request body must be valid JSON"}},
+                await self._respond(send, 400, {"error": {"code": "invalid_json", "message": "request body must be valid JSON"},
+                                                "correlation_id": correlation_id},
                                     response_headers)
                 return
         path = scope.get("path", "/")
@@ -391,8 +417,9 @@ class LedgerASGI:
             status, response = await asyncio.to_thread(
                 self.service.handle, scope.get("method", "GET"), path, payload, headers,
                 client=client, scheme=scope.get("scheme", "http"))
-        except Exception as exc:  # pragma: no cover - defensive boundary
-            await self._respond(send, 500, {"error": {"code": "internal_error", "message": str(exc)}}, response_headers)
+        except Exception:  # pragma: no cover - defensive boundary
+            await self._respond(send, 500, {"error": {"code": "internal_error", "message": "internal server error"},
+                                            "correlation_id": correlation_id}, response_headers)
             return
         await self._respond(send, status, response, response_headers)
 
