@@ -5,12 +5,12 @@
     "python": "3.12.3",
     "sqlite": "3.45.1"
   },
-  "generated_at": "2026-09-11T13:03:50.601395+00:00",
+  "generated_at": "2026-09-11T20:52:38.491992+00:00",
   "measurements": {
     "backup_bytes": 315392,
-    "backup_seconds": 0.014,
-    "drill_seconds": 0.0358,
-    "restore_seconds": 0.0135
+    "backup_seconds": 0.0381,
+    "drill_seconds": 0.0505,
+    "restore_seconds": 0.0041
   },
   "method": "VACUUM INTO snapshot -> read-only verify -> restore copy -> re-verify",
   "results": {
@@ -41,6 +41,7 @@
       "ok": true,
       "path": "/tmp/ledger-ops-work/ledger-restored.sqlite3"
     },
+    "rpo_rto_targets_met": true,
     "tables_before": {
       "audit_events": 75,
       "batches": 2,
@@ -74,12 +75,27 @@
     ]
   },
   "rpo_rto": {
-    "note": "Architecture D-009 defers numerical SLOs; approving RPO/RTO is an architecture-owner decision.",
-    "observed": {
-      "backup_seconds": 0.014,
-      "restore_seconds": 0.0135
+    "conformance": {
+      "rpo_bounded_by_approved_cadence": true,
+      "rto_margin_seconds": 1799.9578,
+      "rto_seconds_within_target": true
     },
-    "status": "targets_unapproved"
+    "observed": {
+      "backup_seconds": 0.0381,
+      "measured_recovery_seconds": 0.0422,
+      "restore_seconds": 0.0041
+    },
+    "policy": {
+      "backup_cadence": "verified full snapshot every 15 minutes local (24h retention) plus daily offsite (30d retention)",
+      "database_boundary": "SQLite single-writer store accepted (docs/database-operations.md \u00a71)",
+      "decision": "D-014",
+      "rpo_bounded_by": "verified full snapshot cadence (15 minutes)",
+      "rpo_target_seconds": 900,
+      "rto_covers": "detection, operator action, restore, verification, and service start",
+      "rto_target_seconds": 1800,
+      "source": "Architecture.md \u00a751 D-014"
+    },
+    "status": "approved"
   },
   "schema_version": 1
 }

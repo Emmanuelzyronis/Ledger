@@ -132,15 +132,32 @@ encrypted before production sign-off.
 
 ## 7. RPO/RTO
 
-**Targets are not approved.** `Architecture.md` D-009 defers numerical SLOs, so
-setting RPO/RTO numbers is an architecture-owner decision, not an implementation
-detail. The drill therefore *measures* recovery and reports the numbers, and
-marks the policy `targets_unapproved` in the evidence.
+**Approved for v1.0 in `Architecture.md` D-014** (Epic 5 / EMM-108). This is a
+data-recovery policy; the numerical *performance* SLOs remain deferred under
+D-009.
 
-Measured on the representative fixture database (see §8): backup ≈ 0.02 s,
-restore ≈ 0.004 s for a 308 KiB database with 17 raw records, 16 canonical
-transactions, 13 reconciliations, 5 discrepancies, and 75 audit events. These are
-small-dataset numbers and must not be extrapolated to production capacity.
+| Objective | Target | Enforced by |
+| --------- | ------ | ----------- |
+| RPO       | ≤ 15 min | verified full snapshot every 15 min (24 h local retention) + daily offsite (30 d) |
+| RTO       | ≤ 30 min | detection → operator action → restore → verify → service start |
+
+A snapshot that fails verification is not a recovery point; the previous verified
+snapshot is. Backup failures must alert (Epic 6) so the cadence that bounds the
+RPO is never silently broken.
+
+The drill in §8 measures the mechanical recovery path and reports it against the
+approved targets: `rpo_rto.status = "approved"`, the policy it compared against,
+and `conformance.rto_seconds_within_target` with the margin. On the
+representative fixture database (17 raw records, 16 canonical transactions, 13
+reconciliations, 5 discrepancies, 75 audit events, ~308 KiB) backup and restore
+together take well under a second, so the measured margin against the 30 minute
+RTO is large. These are small-dataset numbers and must not be extrapolated to
+production capacity; the 15 minute RPO is bounded by the backup cadence, not by
+the drill's runtime.
+
+**SQLite boundary:** the single-writer store in §1 is accepted for these targets
+(D-014). No database-boundary change is required. Reassess if a later decision
+reverses the single-writer or backup strategy.
 
 ## 8. Drills and evidence
 
@@ -171,10 +188,11 @@ the retention guard.
 
 ## 9. Open items (not silently accepted)
 
-- **Numerical RPO/RTO targets require architecture approval** (D-009).
 - **Selecting a production database** (if SQLite's limits in §1 are
   unacceptable) requires an architecture change.
 - **At-rest encryption is delegated** to the storage layer and cannot be verified
   from this repository; staging must assert it.
-- Backup scheduling, offsite replication, and restore rehearsals in staging are
-  deployment concerns owned by Epics 7-8.
+- **Backup scheduling, offsite replication, backup-failure alerting, and staging
+  restore rehearsals must be implemented and proven** by the deployment and
+  observability epics (6-8); D-014 approves the targets but those controls are not
+  yet built. Until then the approved RPO is a policy, not an enforced guarantee.

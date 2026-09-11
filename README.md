@@ -31,8 +31,10 @@ Epic 5 (EMM-81) adds versioned schema migrations, verified backup/restore, a
 fail-closed retention policy, least-privilege read-only verification, and a
 timed recovery drill. `make db-migrate`, `make db-verify`, `make db-backup`, and
 `make db-retention` wrap the `ledger.ops` CLI over `$(DB)` (default
-`ledger.sqlite3`). V1.0 keeps SQLite as the single authoritative store; numerical
-RPO/RTO targets are deliberately unset pending architecture approval (D-009).
+`ledger.sqlite3`). V1.0 keeps SQLite as the single authoritative store. Recovery
+objectives are approved in `Architecture.md` D-014 (RPO ≤ 15 min, RTO ≤ 30 min)
+and the drill reports its measurements against them; numerical *performance*
+SLOs remain deferred under D-009.
 The runbook is `docs/database-operations.md`; evidence is
 `evidence/database-operations.json`; drill code is `src/ledger/ops.py`,
 `src/ledger/migrations.py`, and `src/ledger/retention.py`.

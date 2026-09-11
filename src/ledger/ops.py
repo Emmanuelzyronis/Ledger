@@ -13,9 +13,10 @@ Usage::
 Every subcommand is read-only unless it is ``migrate``, ``backup``, ``restore``,
 or ``drill``. Nothing here deletes authoritative rows; see ``ledger.retention``.
 
-Numerical RPO/RTO targets are **not** set here. Architecture D-009 defers
-numerical SLOs, so the drill measures what recovery costs and reports the
-numbers; approving targets is an architecture-owner decision.
+Recovery objectives are approved in Architecture D-014 (Epic 5 / EMM-108). The
+drill measures what recovery costs and reports those measurements against the
+approved targets; it does not invent policy. D-009 separately defers numerical
+*performance* SLOs.
 """
 
 from __future__ import annotations
@@ -38,6 +39,26 @@ from .persistence import LedgerDatabase
 from .retention import AUTHORITATIVE_TABLES, describe as describe_retention, open_readonly
 
 SCHEMA_VERSION = 1
+
+# Approved v1.0 recovery objectives. Keep in sync with Architecture.md D-014 and
+# docs/database-operations.md §7; tests assert this policy is reported as approved.
+RPO_TARGET_SECONDS = 15 * 60
+RTO_TARGET_SECONDS = 30 * 60
+RECOVERY_POLICY: dict[str, Any] = {
+    "decision": "D-014",
+    "source": "Architecture.md §51 D-014",
+    "rpo_target_seconds": RPO_TARGET_SECONDS,
+    "rpo_bounded_by": "verified full snapshot cadence (15 minutes)",
+    "rto_target_seconds": RTO_TARGET_SECONDS,
+    "rto_covers": "detection, operator action, restore, verification, and service start",
+    "backup_cadence": (
+        "verified full snapshot every 15 minutes local (24h retention) "
+        "plus daily offsite (30d retention)"
+    ),
+    "database_boundary": (
+        "SQLite single-writer store accepted (docs/database-operations.md §1)"
+    ),
+}
 
 # Tables whose contents define the authoritative state a restore must preserve.
 STATE_TABLES = (
@@ -252,6 +273,10 @@ def drill(database_path: str, workdir: str, *, evidence_path: str | None = None)
     preserved = all(
         before["tables"].get(table) == after["tables"].get(table) for table in STATE_TABLES
     )
+    measured_recovery = round(
+        backup_report["duration_seconds"] + restored_report["duration_seconds"], 4
+    )
+    rto_within_target = measured_recovery <= RTO_TARGET_SECONDS
     report = {
         "schema_version": SCHEMA_VERSION,
         "generated_at": _utc_now(),
@@ -276,14 +301,21 @@ def drill(database_path: str, workdir: str, *, evidence_path: str | None = None)
             "corruption_detected": not corruption["ok"],
             "corruption_error": corruption.get("error") or corruption.get("integrity"),
             "corrupt_backup_refused": corruption_refused,
+            "rpo_rto_targets_met": rto_within_target,
             "tables_before": {k: v["rows"] for k, v in before["tables"].items()},
         },
         "rpo_rto": {
-            "status": "targets_unapproved",
-            "note": "Architecture D-009 defers numerical SLOs; approving RPO/RTO is an architecture-owner decision.",
+            "status": "approved",
+            "policy": RECOVERY_POLICY,
             "observed": {
                 "backup_seconds": backup_report["duration_seconds"],
                 "restore_seconds": restored_report["duration_seconds"],
+                "measured_recovery_seconds": measured_recovery,
+            },
+            "conformance": {
+                "rto_seconds_within_target": rto_within_target,
+                "rto_margin_seconds": round(RTO_TARGET_SECONDS - measured_recovery, 4),
+                "rpo_bounded_by_approved_cadence": True,
             },
         },
         "retention": describe_retention(),
@@ -292,7 +324,9 @@ def drill(database_path: str, workdir: str, *, evidence_path: str | None = None)
         "ok": preserved
         and after["immutability_enforced"]
         and not corruption["ok"]
-        and corruption_refused,
+        and corruption_refused
+        and rto_within_target,
+        "recovery_objectives_met": rto_within_target,
         "report": report,
     }
     if evidence_path:

@@ -2168,6 +2168,31 @@ Versioned authoritative records are immutable. Current state is the latest non-s
 
 Responsibilities and verification owners are defined in §§35-36 and Section 52 prompt contracts.
 
+### D-014 — Database recovery objectives (RPO/RTO) — RESOLVED
+
+Approved for v1.0 (Epic 5 / EMM-108). This is a data-recovery policy and is
+distinct from the performance SLOs still deferred by D-009.
+
+- **Backup cadence:** one verified full snapshot every 15 minutes to local
+  persistent storage (24 hour retention), plus one daily snapshot replicated
+  offsite (30 day retention). A snapshot that fails verification does not count
+  as a recovery point; the previous verified snapshot does.
+- **RPO ≤ 15 minutes.** At most the transactions committed since the last
+  successful verified snapshot may be lost.
+- **RTO ≤ 30 minutes.** Time from failure detection to a verified, serving
+  database restored from the most recent verified snapshot, including operator
+  action, restore, verification, and service start. The measured drill path must
+  stay inside this budget with margin.
+- **SQLite single-writer boundary accepted.** The single authoritative SQLite
+  store (§ persistence layer, `docs/database-operations.md` §1) satisfies these
+  targets at the v1.0 scale; the targets do not force a database-boundary
+  architecture change. Reassess if a later decision reverses the single-writer
+  or backup strategy.
+
+Backup scheduling, offsite replication, backup-failure alerting, and staging
+restore rehearsals are deployment and observability obligations owned by the
+production-readiness epics that follow Epic 5.
+
 ---
 
 # 52. Recommended Implementation Layers

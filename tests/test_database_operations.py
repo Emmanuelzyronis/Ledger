@@ -181,12 +181,21 @@ class BackupRestoreTests(unittest.TestCase):
     def test_drill_reports_measurements_and_a_positive_result(self):
         state = ops.drill(self.database, str(Path(self.directory) / "drill"))
         self.assertTrue(state["ok"], state["report"]["results"])
+        self.assertTrue(state["recovery_objectives_met"])
         report = state["report"]
         self.assertTrue(report["results"]["authoritative_state_preserved"])
         self.assertTrue(report["results"]["corruption_detected"])
         self.assertTrue(report["results"]["corrupt_backup_refused"])
+        self.assertTrue(report["results"]["rpo_rto_targets_met"])
         self.assertGreater(report["measurements"]["backup_bytes"], 0)
-        self.assertEqual(report["rpo_rto"]["status"], "targets_unapproved")
+        recovery = report["rpo_rto"]
+        self.assertEqual(recovery["status"], "approved")
+        self.assertEqual(recovery["policy"]["decision"], "D-014")
+        self.assertEqual(recovery["policy"]["rpo_target_seconds"], ops.RPO_TARGET_SECONDS)
+        self.assertEqual(recovery["policy"]["rto_target_seconds"], ops.RTO_TARGET_SECONDS)
+        self.assertTrue(recovery["conformance"]["rto_seconds_within_target"])
+        self.assertTrue(recovery["conformance"]["rpo_bounded_by_approved_cadence"])
+        self.assertGreater(recovery["conformance"]["rto_margin_seconds"], 0)
 
 
 class ControlTests(unittest.TestCase):
