@@ -38,8 +38,9 @@ def build_handler(service: LedgerService) -> type[BaseHTTPRequestHandler]:
                     self._send(400, {"error": {"code": "invalid_json", "message": "request body must be valid JSON"}})
                     return
             headers = {key: value for key, value in self.headers.items()}
-            status, response = service.handle(method, self.path, payload, headers)
-            self._send(status, response)
+            status, response = service.handle(method, self.path, payload, headers,
+                                              client=self.client_address[0], scheme="http")
+            self._send(status, response, headers)
 
         def do_GET(self) -> None:  # noqa: N802 - http.server API
             self._dispatch("GET")
@@ -53,11 +54,16 @@ def build_handler(service: LedgerService) -> type[BaseHTTPRequestHandler]:
             # request bodies or credentials.
             return
 
-        def _send(self, status: int, payload: Any) -> None:
+        def _send(self, status: int, payload: Any, request_headers: Any = None) -> None:
             body = json.dumps(payload).encode("utf-8")
+            origin = None
+            if request_headers is not None:
+                origin = request_headers.get("Origin") or request_headers.get("origin")
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
+            for name, value in service.security_headers(origin).items():
+                self.send_header(name, value)
             self.end_headers()
             self.wfile.write(body)
 

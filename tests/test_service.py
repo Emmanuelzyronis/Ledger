@@ -38,8 +38,11 @@ def quiet_settings(**overrides):
 
 def asgi_request(app, method, path, payload=None, headers=None):
     body = json.dumps(payload).encode() if payload is not None else b""
+    request_headers = dict(headers or {})
+    if payload is not None and not any(key.casefold() == "content-type" for key in request_headers):
+        request_headers["Content-Type"] = "application/json"
     scope = {"type": "http", "method": method, "path": path, "query_string": b"",
-             "headers": [(key.lower().encode(), value.encode()) for key, value in (headers or {}).items()]}
+             "headers": [(key.lower().encode(), value.encode()) for key, value in request_headers.items()]}
     messages = [{"type": "http.request", "body": body, "more_body": False}]
     sent = []
 
@@ -106,7 +109,7 @@ class ServiceLifecycleTests(unittest.TestCase):
         status, body = self.service.handle(
             "POST", "/sources",
             {"source_id": "source-a", "name": "Source A", "schema_versions": ["source_a.v1"]},
-            {"Authorization": "Bearer operator"})
+            {"Authorization": "Bearer operator", "Content-Type": "application/json"})
         self.assertEqual(status, 200)
         self.assertEqual(body["data"]["source_id"], "source-a")
 

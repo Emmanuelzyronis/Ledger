@@ -36,7 +36,12 @@ All configuration is non-secret environment values with safe defaults
 | `LEDGER_DATABASE_PATH` | `ledger.sqlite3` | path to the authoritative SQLite database |
 | `LEDGER_MAX_BODY_BYTES` | `1048576` | request body limit (larger bodies get HTTP 413) |
 | `LEDGER_DRAIN_TIMEOUT_SECONDS` | `10` | how long shutdown waits for in-flight requests |
-| `LEDGER_API_TOKENS` | *(empty)* | baseline opaque bearer tokens, `token:role[:source|source]` |
+| `LEDGER_TOKEN_SECRET` | *(unset)* | enables signed HMAC bearer tokens (production baseline) |
+| `LEDGER_API_TOKENS` | *(empty)* | development-only opaque bearer tokens, `token:role[:source|source]` |
+| `LEDGER_MAX_JSON_DEPTH` | `32` | maximum JSON nesting depth (415/400 on violation) |
+| `LEDGER_RATE_LIMIT_PER_MINUTE` | `0` | per-client fixed-window rate limit; `0` disables |
+| `LEDGER_REQUIRE_TLS` | `true` in production | reject non-probe plaintext requests |
+| `LEDGER_CORS_ORIGINS` | *(empty)* | comma-separated allowlisted browser origins |
 
 Secrets are never hardcoded and are supplied by the runtime environment or a
 secret manager (see `.env.example`). Tokens are never logged.
