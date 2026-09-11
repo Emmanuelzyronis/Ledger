@@ -1,0 +1,926 @@
+{
+  "checks": [
+    {
+      "check_id": "outcomes.portfolio",
+      "description": "every portfolio record reaches its expected terminal outcome",
+      "detail": {},
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "outcomes.all_seven",
+      "description": "all seven reconciliation outcomes are demonstrated in one run",
+      "detail": {
+        "expected": {
+          "AMBIGUOUS": 3,
+          "DUPLICATE": 3,
+          "INVALID": 1,
+          "MATCHED": 2,
+          "MISMATCHED": 2,
+          "UNMATCHED_A": 1,
+          "UNMATCHED_B": 1
+        },
+        "observed": {
+          "AMBIGUOUS": 3,
+          "DUPLICATE": 3,
+          "INVALID": 1,
+          "MATCHED": 2,
+          "MISMATCHED": 2,
+          "UNMATCHED_A": 1,
+          "UNMATCHED_B": 1
+        },
+        "rows": 13
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "outcomes.invalid_raw_only",
+      "description": "INVALID reconciliation is raw-only lineage",
+      "detail": [
+        {
+          "batch_id": "pf-batch-a",
+          "evidence": {
+            "evaluated_at": "2026-09-11T03:55:24.192421+00:00",
+            "outcome": "INVALID",
+            "validation": "INVALID",
+            "validation_version": "validation_v1"
+          },
+          "evidence_json": "{\"evaluated_at\":\"2026-09-11T03:55:24.192421+00:00\",\"outcome\":\"INVALID\",\"validation\":\"INVALID\",\"validation_version\":\"validation_v1\"}",
+          "outcome": "INVALID",
+          "raw_record_id": "raw:source-a:source_a.v1:2c1775344778844e858c1cd520c554f3fffa978f25fc4259375aeb170d800e8a",
+          "reconciliation_id": "reconciliation:efafda082c2f9fbc634048ce024643048bcf5ba67b28a8446f04fb8316a8f4fc",
+          "reconciliation_version": 1,
+          "resolution_id": null,
+          "rule_version": "standard_v1",
+          "source_a_record_id": null,
+          "source_b_record_id": null,
+          "state": "INVALID",
+          "supersedes_reconciliation_id": null
+        }
+      ],
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "discrepancies.created",
+      "description": "exactly the ambiguous and mismatched reconciliations create discrepancies",
+      "detail": [
+        {
+          "discrepancy_id": "discrepancy:2ddbd5de34cc976ad7bc6d38fae7fd2e2ed72aef975855335ed164e0b8f971b7",
+          "reason": "amount, currency, or direction differs",
+          "reconciliation_id": "reconciliation:547491373ff394df4a1b1b09f7f695e1ea0b9b42ef7352b5eb81ded5a3a3faaf",
+          "reconciliation_outcome": "MISMATCHED",
+          "record_id": "A007",
+          "state": "OPEN"
+        },
+        {
+          "discrepancy_id": "discrepancy:4ffbf0c47bfce5d3a29bb9c3146dec75a3e667a83ab39eb517e50cd0f0e40b2d",
+          "reason": "multiple candidates satisfy the highest applicable rule",
+          "reconciliation_id": "reconciliation:d0f519dee00715d2d412285784d75b952d16edccc806dee51ac185862f1da746",
+          "reconciliation_outcome": "AMBIGUOUS",
+          "record_id": "B995",
+          "state": "OPEN"
+        },
+        {
+          "discrepancy_id": "discrepancy:7b3b5d50c451c79552e0e43adc0bca7f51f4c11e5078cccebc27c2ee0ff084c9",
+          "reason": "multiple candidates satisfy the highest applicable rule",
+          "reconciliation_id": "reconciliation:cbb1bbef0b11df7b8e670f46bd568c384651c8d4f64f8ac02ede010fc16d855e",
+          "reconciliation_outcome": "AMBIGUOUS",
+          "record_id": "B994",
+          "state": "OPEN"
+        },
+        {
+          "discrepancy_id": "discrepancy:b4d62e284dbdd1bf9a9cfc18aea1f2cd1fc505f142cf012e2c5a96e903f55679",
+          "reason": "amount, currency, or direction differs",
+          "reconciliation_id": "reconciliation:76e0f3f8c3676d3b4bdde83c2093a9852348b73ccd6efaf67ebafacd32f1adc0",
+          "reconciliation_outcome": "MISMATCHED",
+          "record_id": "A006",
+          "state": "OPEN"
+        },
+        {
+          "discrepancy_id": "discrepancy:d833e835e8be31a711632d45544d7edbfaa68e0fdc57d4cd3e4259ce1be0f6a3",
+          "reason": "multiple candidates satisfy the highest applicable rule",
+          "reconciliation_id": "reconciliation:2a339e12ec92e43188a39c6d2522c2bec570fab78e6637a62315d6da547a5e19",
+          "reconciliation_outcome": "AMBIGUOUS",
+          "record_id": "A004",
+          "state": "OPEN"
+        }
+      ],
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "decisions.explainable",
+      "description": "every decision carries rule version, outcome, candidate order, and evaluation evidence",
+      "detail": null,
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "audit.stage_coverage",
+      "description": "audit trail covers batch, ingestion, validation, normalization, matching, duplicate, and discrepancy events",
+      "detail": {
+        "missing": []
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "invariant.no_silent_loss",
+      "description": "every accepted record has a validation result and a reconciliation outcome",
+      "detail": {
+        "raw_records": 17,
+        "records_with_outcomes": 17
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "resolution.idempotent_A004",
+      "description": "resolution replay for A004 returns the same immutable resolution",
+      "detail": {
+        "first": "resolution:9210c9a24737f5b8c93cea8dab1ec568f6199db16b6e65597c2d9f4c83576be1",
+        "replay": "resolution:9210c9a24737f5b8c93cea8dab1ec568f6199db16b6e65597c2d9f4c83576be1"
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "resolution.api_A006",
+      "description": "operator resolution for A006 is accepted through the API",
+      "detail": {
+        "body": {
+          "correlation_id": "52e25794-ee0e-419d-b4ab-d2bb97bf5ded",
+          "data": {
+            "discrepancy": {
+              "discrepancy_id": "discrepancy:b4d62e284dbdd1bf9a9cfc18aea1f2cd1fc505f142cf012e2c5a96e903f55679",
+              "reason": "amount, currency, or direction differs",
+              "reconciliation_id": "reconciliation:76e0f3f8c3676d3b4bdde83c2093a9852348b73ccd6efaf67ebafacd32f1adc0",
+              "state": "RESOLVED"
+            },
+            "reconciliation": {
+              "batch_id": "pf-batch-a",
+              "evidence": {
+                "candidate_order": [
+                  "candidate:9b1adf6a4004378504145dd995a2989157741e2d7f5fb48203d97dce2c86c080"
+                ],
+                "counterpart_canonical_id": "can:raw:source-b:source_b.v1:7e1b7eb5b67cb1125419e68492a095a9d1b24f3a7e82795791ea91782ad530c1:canonical_v2:1",
+                "evaluated_at": "2026-09-08T12:00:00+00:00",
+                "evaluation": {
+                  "canonical_id": "can:raw:source-a:source_a.v1:01ba710d48f25a6473a6abdebd7197f3aab465de9a6edaf90af166b40d74a754:canonical_v2:1",
+                  "comparisons": [
+                    {
+                      "candidate_id": "candidate:9b1adf6a4004378504145dd995a2989157741e2d7f5fb48203d97dce2c86c080",
+                      "matched": true,
+                      "rule_id": "M-001"
+                    }
+                  ],
+                  "ordered_candidates": [
+                    "candidate:9b1adf6a4004378504145dd995a2989157741e2d7f5fb48203d97dce2c86c080"
+                  ],
+                  "rule_version": "standard_v1",
+                  "selected_counterparts": [
+                    "can:raw:source-b:source_b.v1:7e1b7eb5b67cb1125419e68492a095a9d1b24f3a7e82795791ea91782ad530c1:canonical_v2:1"
+                  ],
+                  "selected_rule": "M-001",
+                  "side": "A"
+                },
+                "outcome": "MISMATCHED",
+                "resolution_id": "resolution:ddeabe1d1bf2fac20b710209609e20fb247819f4e7c9afefd4f009aa5cfe9396",
+                "resolution_type": "MANUAL_APPROVED",
+                "rule_version": "standard_v1",
+                "selected_rule": "M-001"
+              },
+              "outcome": "MISMATCHED",
+              "raw_record_id": null,
+              "reconciliation_id": "reconciliation:a3f4afdcdd8ce581588166aa3d435d56cb69c9e8ea87130386ea53f278137d33",
+              "reconciliation_version": 2,
+              "resolution_id": "resolution:ddeabe1d1bf2fac20b710209609e20fb247819f4e7c9afefd4f009aa5cfe9396",
+              "rule_version": "standard_v1",
+              "source_a_record_id": "can:raw:source-a:source_a.v1:01ba710d48f25a6473a6abdebd7197f3aab465de9a6edaf90af166b40d74a754:canonical_v2:1",
+              "source_b_record_id": "can:raw:source-b:source_b.v1:7e1b7eb5b67cb1125419e68492a095a9d1b24f3a7e82795791ea91782ad530c1:canonical_v2:1",
+              "state": "RESOLVED",
+              "supersedes_reconciliation_id": "reconciliation:76e0f3f8c3676d3b4bdde83c2093a9852348b73ccd6efaf67ebafacd32f1adc0"
+            },
+            "resolution": {
+              "actor": "reconciliation_operator",
+              "created_at": "2026-09-11T03:55:24.203095+00:00",
+              "discrepancy_id": "discrepancy:b4d62e284dbdd1bf9a9cfc18aea1f2cd1fc505f142cf012e2c5a96e903f55679",
+              "evidence": {},
+              "reason": "reference verified; amount variance accepted",
+              "reconciliation_id": "reconciliation:76e0f3f8c3676d3b4bdde83c2093a9852348b73ccd6efaf67ebafacd32f1adc0",
+              "resolution_id": "resolution:ddeabe1d1bf2fac20b710209609e20fb247819f4e7c9afefd4f009aa5cfe9396",
+              "resolution_type": "MANUAL_APPROVED",
+              "rule_version": null
+            }
+          }
+        },
+        "status": 200
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "resolution.idempotent_A007",
+      "description": "resolution replay for A007 returns the same immutable resolution",
+      "detail": {
+        "first": "resolution:a9bfdb2ff5cee25d7fe1f05d92cbfdcfe83d95f18fcfc6118c9663887f2a4981",
+        "replay": "resolution:a9bfdb2ff5cee25d7fe1f05d92cbfdcfe83d95f18fcfc6118c9663887f2a4981"
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "resolution.idempotent_B994",
+      "description": "resolution replay for B994 returns the same immutable resolution",
+      "detail": {
+        "first": "resolution:da423ad5b1818ca2564187c9bcfbb2ba2284a04eae3be9a49eeadc3e299cdee4",
+        "replay": "resolution:da423ad5b1818ca2564187c9bcfbb2ba2284a04eae3be9a49eeadc3e299cdee4"
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "resolution.versions",
+      "description": "approved resolutions create immutable superseding reconciliation versions",
+      "detail": [
+        {
+          "batch_id": "pf-batch-a",
+          "evidence": {
+            "candidate_order": [
+              "candidate:9b1adf6a4004378504145dd995a2989157741e2d7f5fb48203d97dce2c86c080"
+            ],
+            "counterpart_canonical_id": "can:raw:source-b:source_b.v1:7e1b7eb5b67cb1125419e68492a095a9d1b24f3a7e82795791ea91782ad530c1:canonical_v2:1",
+            "evaluated_at": "2026-09-08T12:00:00+00:00",
+            "evaluation": {
+              "canonical_id": "can:raw:source-a:source_a.v1:01ba710d48f25a6473a6abdebd7197f3aab465de9a6edaf90af166b40d74a754:canonical_v2:1",
+              "comparisons": [
+                {
+                  "candidate_id": "candidate:9b1adf6a4004378504145dd995a2989157741e2d7f5fb48203d97dce2c86c080",
+                  "matched": true,
+                  "rule_id": "M-001"
+                }
+              ],
+              "ordered_candidates": [
+                "candidate:9b1adf6a4004378504145dd995a2989157741e2d7f5fb48203d97dce2c86c080"
+              ],
+              "rule_version": "standard_v1",
+              "selected_counterparts": [
+                "can:raw:source-b:source_b.v1:7e1b7eb5b67cb1125419e68492a095a9d1b24f3a7e82795791ea91782ad530c1:canonical_v2:1"
+              ],
+              "selected_rule": "M-001",
+              "side": "A"
+            },
+            "outcome": "MISMATCHED",
+            "resolution_id": "resolution:ddeabe1d1bf2fac20b710209609e20fb247819f4e7c9afefd4f009aa5cfe9396",
+            "resolution_type": "MANUAL_APPROVED",
+            "rule_version": "standard_v1",
+            "selected_rule": "M-001"
+          },
+          "evidence_json": "{\"candidate_order\":[\"candidate:9b1adf6a4004378504145dd995a2989157741e2d7f5fb48203d97dce2c86c080\"],\"counterpart_canonical_id\":\"can:raw:source-b:source_b.v1:7e1b7eb5b67cb1125419e68492a095a9d1b24f3a7e82795791ea91782ad530c1:canonical_v2:1\",\"evaluated_at\":\"2026-09-08T12:00:00+00:00\",\"evaluation\":{\"canonical_id\":\"can:raw:source-a:source_a.v1:01ba710d48f25a6473a6abdebd7197f3aab465de9a6edaf90af166b40d74a754:canonical_v2:1\",\"comparisons\":[{\"candidate_id\":\"candidate:9b1adf6a4004378504145dd995a2989157741e2d7f5fb48203d97dce2c86c080\",\"matched\":true,\"rule_id\":\"M-001\"}],\"ordered_candidates\":[\"candidate:9b1adf6a4004378504145dd995a2989157741e2d7f5fb48203d97dce2c86c080\"],\"rule_version\":\"standard_v1\",\"selected_counterparts\":[\"can:raw:source-b:source_b.v1:7e1b7eb5b67cb1125419e68492a095a9d1b24f3a7e82795791ea91782ad530c1:canonical_v2:1\"],\"selected_rule\":\"M-001\",\"side\":\"A\"},\"outcome\":\"MISMATCHED\",\"resolution_id\":\"resolution:ddeabe1d1bf2fac20b710209609e20fb247819f4e7c9afefd4f009aa5cfe9396\",\"resolution_type\":\"MANUAL_APPROVED\",\"rule_version\":\"standard_v1\",\"selected_rule\":\"M-001\"}",
+          "outcome": "MISMATCHED",
+          "raw_record_id": null,
+          "reconciliation_id": "reconciliation:a3f4afdcdd8ce581588166aa3d435d56cb69c9e8ea87130386ea53f278137d33",
+          "reconciliation_version": 2,
+          "resolution_id": "resolution:ddeabe1d1bf2fac20b710209609e20fb247819f4e7c9afefd4f009aa5cfe9396",
+          "rule_version": "standard_v1",
+          "source_a_record_id": "can:raw:source-a:source_a.v1:01ba710d48f25a6473a6abdebd7197f3aab465de9a6edaf90af166b40d74a754:canonical_v2:1",
+          "source_b_record_id": "can:raw:source-b:source_b.v1:7e1b7eb5b67cb1125419e68492a095a9d1b24f3a7e82795791ea91782ad530c1:canonical_v2:1",
+          "state": "RESOLVED",
+          "supersedes_reconciliation_id": "reconciliation:76e0f3f8c3676d3b4bdde83c2093a9852348b73ccd6efaf67ebafacd32f1adc0"
+        },
+        {
+          "batch_id": "pf-batch-a",
+          "evidence": {
+            "candidate_order": [
+              "candidate:7d3b0c85b1551a692e3a79c2f1c4d70b6a1876fce6b6ab1ea752b5ae8ed1457d",
+              "candidate:2dba542988bb018c4e356223ceed00b5dae491d4d8e99a8f73f971351ff1d4e7",
+              "candidate:49c40cc3f894efd818288adf491e33874c5b398c958b8258a09ef6b2117e4ac6"
+            ],
+            "evaluated_at": "2026-09-08T12:00:00+00:00",
+            "evaluation": {
+              "canonical_id": "can:raw:source-a:source_a.v1:1484f7c8551dc884497f2da3f00e2ae2aeccb614d198020e380cd15d2c6659b2:canonical_v2:1",
+              "comparisons": [
+                {
+                  "candidate_id": "candidate:7d3b0c85b1551a692e3a79c2f1c4d70b6a1876fce6b6ab1ea752b5ae8ed1457d",
+                  "matched": false,
+                  "rule_id": "M-001"
+                },
+                {
+                  "candidate_id": "candidate:2dba542988bb018c4e356223ceed00b5dae491d4d8e99a8f73f971351ff1d4e7",
+                  "matched": false,
+                  "rule_id": "M-001"
+                },
+                {
+                  "candidate_id": "candidate:49c40cc3f894efd818288adf491e33874c5b398c958b8258a09ef6b2117e4ac6",
+                  "matched": false,
+                  "rule_id": "M-001"
+                },
+                {
+                  "candidate_id": "candidate:7d3b0c85b1551a692e3a79c2f1c4d70b6a1876fce6b6ab1ea752b5ae8ed1457d",
+                  "matched": true,
+                  "rule_id": "M-002"
+                },
+                {
+                  "candidate_id": "candidate:2dba542988bb018c4e356223ceed00b5dae491d4d8e99a8f73f971351ff1d4e7",
+                  "matched": true,
+                  "rule_id": "M-002"
+                },
+                {
+                  "candidate_id": "candidate:49c40cc3f894efd818288adf491e33874c5b398c958b8258a09ef6b2117e4ac6",
+                  "matched": true,
+                  "rule_id": "M-002"
+                }
+              ],
+              "ordered_candidates": [
+                "candidate:7d3b0c85b1551a692e3a79c2f1c4d70b6a1876fce6b6ab1ea752b5ae8ed1457d",
+                "candidate:2dba542988bb018c4e356223ceed00b5dae491d4d8e99a8f73f971351ff1d4e7",
+                "candidate:49c40cc3f894efd818288adf491e33874c5b398c958b8258a09ef6b2117e4ac6"
+              ],
+              "rule_version": "standard_v1",
+              "selected_counterparts": [
+                "can:raw:source-b:source_b.v1:66c850e71746b026759f81b021e0ab3660056bd77bf7243600cc451c22e83201:canonical_v2:1",
+                "can:raw:source-b:source_b.v1:6a8991034531b7ab384d2f29b796a26da6376ca82b672dcb605af1b77f57211c:canonical_v2:1",
+                "can:raw:source-b:source_b.v1:b410720f28e89a1aef0891681f33a868b78a5905b75b38c82de33e9616d7a3e9:canonical_v2:1"
+              ],
+              "selected_rule": "M-002",
+              "side": "A"
+            },
+            "outcome": "AMBIGUOUS",
+            "resolution_id": "resolution:9210c9a24737f5b8c93cea8dab1ec568f6199db16b6e65597c2d9f4c83576be1",
+            "resolution_type": "AUTOMATIC",
+            "rule_version": "standard_v1"
+          },
+          "evidence_json": "{\"candidate_order\":[\"candidate:7d3b0c85b1551a692e3a79c2f1c4d70b6a1876fce6b6ab1ea752b5ae8ed1457d\",\"candidate:2dba542988bb018c4e356223ceed00b5dae491d4d8e99a8f73f971351ff1d4e7\",\"candidate:49c40cc3f894efd818288adf491e33874c5b398c958b8258a09ef6b2117e4ac6\"],\"evaluated_at\":\"2026-09-08T12:00:00+00:00\",\"evaluation\":{\"canonical_id\":\"can:raw:source-a:source_a.v1:1484f7c8551dc884497f2da3f00e2ae2aeccb614d198020e380cd15d2c6659b2:canonical_v2:1\",\"comparisons\":[{\"candidate_id\":\"candidate:7d3b0c85b1551a692e3a79c2f1c4d70b6a1876fce6b6ab1ea752b5ae8ed1457d\",\"matched\":false,\"rule_id\":\"M-001\"},{\"candidate_id\":\"candidate:2dba542988bb018c4e356223ceed00b5dae491d4d8e99a8f73f971351ff1d4e7\",\"matched\":false,\"rule_id\":\"M-001\"},{\"candidate_id\":\"candidate:49c40cc3f894efd818288adf491e33874c5b398c958b8258a09ef6b2117e4ac6\",\"matched\":false,\"rule_id\":\"M-001\"},{\"candidate_id\":\"candidate:7d3b0c85b1551a692e3a79c2f1c4d70b6a1876fce6b6ab1ea752b5ae8ed1457d\",\"matched\":true,\"rule_id\":\"M-002\"},{\"candidate_id\":\"candidate:2dba542988bb018c4e356223ceed00b5dae491d4d8e99a8f73f971351ff1d4e7\",\"matched\":true,\"rule_id\":\"M-002\"},{\"candidate_id\":\"candidate:49c40cc3f894efd818288adf491e33874c5b398c958b8258a09ef6b2117e4ac6\",\"matched\":true,\"rule_id\":\"M-002\"}],\"ordered_candidates\":[\"candidate:7d3b0c85b1551a692e3a79c2f1c4d70b6a1876fce6b6ab1ea752b5ae8ed1457d\",\"candidate:2dba542988bb018c4e356223ceed00b5dae491d4d8e99a8f73f971351ff1d4e7\",\"candidate:49c40cc3f894efd818288adf491e33874c5b398c958b8258a09ef6b2117e4ac6\"],\"rule_version\":\"standard_v1\",\"selected_counterparts\":[\"can:raw:source-b:source_b.v1:66c850e71746b026759f81b021e0ab3660056bd77bf7243600cc451c22e83201:canonical_v2:1\",\"can:raw:source-b:source_b.v1:6a8991034531b7ab384d2f29b796a26da6376ca82b672dcb605af1b77f57211c:canonical_v2:1\",\"can:raw:source-b:source_b.v1:b410720f28e89a1aef0891681f33a868b78a5905b75b38c82de33e9616d7a3e9:canonical_v2:1\"],\"selected_rule\":\"M-002\",\"side\":\"A\"},\"outcome\":\"AMBIGUOUS\",\"resolution_id\":\"resolution:9210c9a24737f5b8c93cea8dab1ec568f6199db16b6e65597c2d9f4c83576be1\",\"resolution_type\":\"AUTOMATIC\",\"rule_version\":\"standard_v1\"}",
+          "outcome": "AMBIGUOUS",
+          "raw_record_id": null,
+          "reconciliation_id": "reconciliation:e0f0a4f97483499e8909d06383e3d56eb0f0004d70b2f6ea6abcc454c8ebe99c",
+          "reconciliation_version": 2,
+          "resolution_id": "resolution:9210c9a24737f5b8c93cea8dab1ec568f6199db16b6e65597c2d9f4c83576be1",
+          "rule_version": "standard_v1",
+          "source_a_record_id": "can:raw:source-a:source_a.v1:1484f7c8551dc884497f2da3f00e2ae2aeccb614d198020e380cd15d2c6659b2:canonical_v2:1",
+          "source_b_record_id": null,
+          "state": "RESOLVED",
+          "supersedes_reconciliation_id": "reconciliation:2a339e12ec92e43188a39c6d2522c2bec570fab78e6637a62315d6da547a5e19"
+        }
+      ],
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "resolution.states",
+      "description": "resolution states match the authorized workflows (resolved, deferred, rejected, open)",
+      "detail": {
+        "A004": "RESOLVED",
+        "A006": "RESOLVED",
+        "A007": "DEFERRED",
+        "B994": "REJECTED",
+        "B995": "OPEN"
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "resolution.counts",
+      "description": "four resolutions exist and re-applied resolutions created no duplicates",
+      "detail": {
+        "resolutions": 4
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "api.report_matches_authority",
+      "description": "API report outcome counts agree with authoritative reconciliation rows",
+      "detail": {
+        "authoritative": {
+          "AMBIGUOUS": 4,
+          "DUPLICATE": 3,
+          "INVALID": 1,
+          "MATCHED": 2,
+          "MISMATCHED": 3,
+          "UNMATCHED_A": 1,
+          "UNMATCHED_B": 1
+        },
+        "report": {
+          "AMBIGUOUS": 4,
+          "DUPLICATE": 3,
+          "INVALID": 1,
+          "MATCHED": 2,
+          "MISMATCHED": 3,
+          "UNMATCHED_A": 1,
+          "UNMATCHED_B": 1
+        }
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "api.report_batch_matches_authority",
+      "description": "batch-scoped API report agrees with authoritative rows for that batch",
+      "detail": {
+        "authoritative": {
+          "AMBIGUOUS": 2,
+          "DUPLICATE": 2,
+          "INVALID": 1,
+          "MATCHED": 2,
+          "MISMATCHED": 3,
+          "UNMATCHED_A": 1
+        },
+        "report": {
+          "AMBIGUOUS": 2,
+          "DUPLICATE": 2,
+          "INVALID": 1,
+          "MATCHED": 2,
+          "MISMATCHED": 3,
+          "UNMATCHED_A": 1
+        }
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "api.export_redacted",
+      "description": "export projection is read-only and contains no raw payload values",
+      "detail": {
+        "leaked": []
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "api.source_isolation_reconciliations",
+      "description": "reader scoped to source-a sees only source-a reconciliation rows",
+      "detail": {
+        "authoritative": 11,
+        "visible": 11
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "api.source_isolation_batch",
+      "description": "reader scoped to source-a cannot read a source-b batch report",
+      "detail": {
+        "status": 403
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "api.source_isolation_audit",
+      "description": "audit retrieval is scoped by source",
+      "detail": {
+        "source_a": 200,
+        "source_b": 403
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "api.role_enforced",
+      "description": "resolution without the operator role is rejected",
+      "detail": {
+        "status": 403
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "api.authentication_required",
+      "description": "unauthenticated requests are rejected",
+      "detail": {
+        "status": 401
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "api.health",
+      "description": "health endpoint reports application and database ok",
+      "detail": {
+        "application": "ok",
+        "database": "ok",
+        "status": "ok"
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "replay.submission_duplicate",
+      "description": "resubmitting an accepted payload is a submission duplicate without a new raw row",
+      "detail": {
+        "duplicate_submission": true,
+        "raw_after": 17,
+        "raw_before": 17
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "replay.submission_duplicate_audited",
+      "description": "a submission duplicate emits at most one SUBMISSION_DUPLICATE audit event",
+      "detail": {
+        "events": 1
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "replay.pipeline_idempotent",
+      "description": "re-running validation/normalization/candidates/matching adds no authoritative rows",
+      "detail": {
+        "after": {
+          "canonical": 16,
+          "raw": 17,
+          "reconciliations": 15
+        },
+        "before": {
+          "canonical": 16,
+          "raw": 17,
+          "reconciliations": 15
+        }
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "api.late_record_ingested",
+      "description": "late-arriving record is accepted through the API",
+      "detail": {
+        "batch_id": "pf-batch-b-late",
+        "duplicate_submission": false,
+        "fingerprint": "e06e4292514120927726ea8d86d03ef6f46ce362ea34efa6f5ec3e1846128407",
+        "invalid_reason": null,
+        "raw_record_id": "raw:source-b:source_b.v1:e06e4292514120927726ea8d86d03ef6f46ce362ea34efa6f5ec3e1846128407",
+        "status": "ACCEPTED"
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "api.late_record_idempotent",
+      "description": "resubmitting the late record through the API is a submission duplicate",
+      "detail": {
+        "batch_id": "pf-batch-b-late",
+        "duplicate_submission": true,
+        "fingerprint": "e06e4292514120927726ea8d86d03ef6f46ce362ea34efa6f5ec3e1846128407",
+        "invalid_reason": null,
+        "raw_record_id": "raw:source-b:source_b.v1:e06e4292514120927726ea8d86d03ef6f46ce362ea34efa6f5ec3e1846128407",
+        "status": "ACCEPTED"
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "late_arrival.new_decision",
+      "description": "late arrival adds a MATCHED decision for A003 while preserving its UNMATCHED_A history",
+      "detail": [
+        {
+          "batch_id": "pf-batch-a",
+          "evidence": {
+            "candidate_order": [],
+            "evaluated_at": "2026-09-08T12:00:00+00:00",
+            "evaluation": {},
+            "outcome": "UNMATCHED_A",
+            "rule_version": "standard_v1"
+          },
+          "evidence_json": "{\"candidate_order\":[],\"evaluated_at\":\"2026-09-08T12:00:00+00:00\",\"evaluation\":{},\"outcome\":\"UNMATCHED_A\",\"rule_version\":\"standard_v1\"}",
+          "outcome": "UNMATCHED_A",
+          "raw_record_id": null,
+          "reconciliation_id": "reconciliation:45a2e523a6369b3e7345cfae96be8500116b22a9231cf9d46b668db43bdcd33c",
+          "reconciliation_version": 1,
+          "resolution_id": null,
+          "rule_version": "standard_v1",
+          "source_a_record_id": "can:raw:source-a:source_a.v1:2bed9c45999d0f9db6c937deb988f1e5d14c1715752ec399061ae769ed0a3087:canonical_v2:1",
+          "source_b_record_id": null,
+          "state": "UNMATCHED_A",
+          "supersedes_reconciliation_id": null
+        },
+        {
+          "batch_id": "pf-batch-a",
+          "evidence": {
+            "candidate_order": [
+              "candidate:d28628078bfd74b57026ad5d8b86bc770032ea51e195ff4f4ef89a2cb9fa6e59"
+            ],
+            "counterpart_canonical_id": "can:raw:source-b:source_b.v1:e06e4292514120927726ea8d86d03ef6f46ce362ea34efa6f5ec3e1846128407:canonical_v2:1",
+            "evaluated_at": "2026-09-08T12:00:00+00:00",
+            "evaluation": {
+              "canonical_id": "can:raw:source-a:source_a.v1:2bed9c45999d0f9db6c937deb988f1e5d14c1715752ec399061ae769ed0a3087:canonical_v2:1",
+              "comparisons": [
+                {
+                  "candidate_id": "candidate:d28628078bfd74b57026ad5d8b86bc770032ea51e195ff4f4ef89a2cb9fa6e59",
+                  "matched": false,
+                  "rule_id": "M-001"
+                },
+                {
+                  "candidate_id": "candidate:d28628078bfd74b57026ad5d8b86bc770032ea51e195ff4f4ef89a2cb9fa6e59",
+                  "matched": true,
+                  "rule_id": "M-002"
+                }
+              ],
+              "ordered_candidates": [
+                "candidate:d28628078bfd74b57026ad5d8b86bc770032ea51e195ff4f4ef89a2cb9fa6e59"
+              ],
+              "rule_version": "standard_v1",
+              "selected_counterparts": [
+                "can:raw:source-b:source_b.v1:e06e4292514120927726ea8d86d03ef6f46ce362ea34efa6f5ec3e1846128407:canonical_v2:1"
+              ],
+              "selected_rule": "M-002",
+              "side": "A"
+            },
+            "outcome": "MATCHED",
+            "rule_version": "standard_v1",
+            "selected_rule": "M-002"
+          },
+          "evidence_json": "{\"candidate_order\":[\"candidate:d28628078bfd74b57026ad5d8b86bc770032ea51e195ff4f4ef89a2cb9fa6e59\"],\"counterpart_canonical_id\":\"can:raw:source-b:source_b.v1:e06e4292514120927726ea8d86d03ef6f46ce362ea34efa6f5ec3e1846128407:canonical_v2:1\",\"evaluated_at\":\"2026-09-08T12:00:00+00:00\",\"evaluation\":{\"canonical_id\":\"can:raw:source-a:source_a.v1:2bed9c45999d0f9db6c937deb988f1e5d14c1715752ec399061ae769ed0a3087:canonical_v2:1\",\"comparisons\":[{\"candidate_id\":\"candidate:d28628078bfd74b57026ad5d8b86bc770032ea51e195ff4f4ef89a2cb9fa6e59\",\"matched\":false,\"rule_id\":\"M-001\"},{\"candidate_id\":\"candidate:d28628078bfd74b57026ad5d8b86bc770032ea51e195ff4f4ef89a2cb9fa6e59\",\"matched\":true,\"rule_id\":\"M-002\"}],\"ordered_candidates\":[\"candidate:d28628078bfd74b57026ad5d8b86bc770032ea51e195ff4f4ef89a2cb9fa6e59\"],\"rule_version\":\"standard_v1\",\"selected_counterparts\":[\"can:raw:source-b:source_b.v1:e06e4292514120927726ea8d86d03ef6f46ce362ea34efa6f5ec3e1846128407:canonical_v2:1\"],\"selected_rule\":\"M-002\",\"side\":\"A\"},\"outcome\":\"MATCHED\",\"rule_version\":\"standard_v1\",\"selected_rule\":\"M-002\"}",
+          "outcome": "MATCHED",
+          "raw_record_id": null,
+          "reconciliation_id": "reconciliation:5680596ba1962a38460970c959cbdae008e6f2a5dc4849557cf6d10800371210",
+          "reconciliation_version": 1,
+          "resolution_id": null,
+          "rule_version": "standard_v1",
+          "source_a_record_id": "can:raw:source-a:source_a.v1:2bed9c45999d0f9db6c937deb988f1e5d14c1715752ec399061ae769ed0a3087:canonical_v2:1",
+          "source_b_record_id": "can:raw:source-b:source_b.v1:e06e4292514120927726ea8d86d03ef6f46ce362ea34efa6f5ec3e1846128407:canonical_v2:1",
+          "state": "MATCHED",
+          "supersedes_reconciliation_id": null
+        }
+      ],
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "history.immutable_rows",
+      "description": "no authoritative row was mutated or deleted by replay, resolution, or late arrival",
+      "detail": {
+        "original_raw_rows_preserved": true,
+        "raw_rows": 18,
+        "rows": 16
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "history.immutability_enforced",
+      "description": "direct mutation of an accepted raw payload is rejected by persistence",
+      "detail": {
+        "rejected": true,
+        "row_intact": true
+      },
+      "passed": true,
+      "scenario": "portfolio"
+    },
+    {
+      "check_id": "telemetry.stage_coverage",
+      "description": "telemetry is emitted by ingestion, validation, normalization, and identity",
+      "detail": {
+        "missing": []
+      },
+      "passed": true,
+      "scenario": "telemetry"
+    },
+    {
+      "check_id": "telemetry.redaction",
+      "description": "telemetry events contain no payload or description values",
+      "detail": {
+        "event_count": 10
+      },
+      "passed": true,
+      "scenario": "telemetry"
+    },
+    {
+      "check_id": "correction.original_matched",
+      "description": "original P-1/Q-1 pair reconciles as MATCHED before correction",
+      "detail": {
+        "P-1": {
+          "counterpart": "Q-1",
+          "outcome": "MATCHED",
+          "reconciliation_id": "reconciliation:4add1fc662ff94f48f6eaa139c3520c8ae6f22c2a248ea932411d7812556fb31",
+          "reconciliation_version": 1,
+          "state": "MATCHED"
+        },
+        "Q-1": {
+          "counterpart": "P-1",
+          "outcome": "MATCHED",
+          "reconciliation_id": "reconciliation:4add1fc662ff94f48f6eaa139c3520c8ae6f22c2a248ea932411d7812556fb31",
+          "reconciliation_version": 1,
+          "state": "MATCHED"
+        }
+      },
+      "passed": true,
+      "scenario": "correction"
+    },
+    {
+      "check_id": "correction.raw_supersedes",
+      "description": "corrected raw record links to the original through supersession",
+      "detail": {
+        "original": "raw:source-a:source_a.v1:56f62b438a0016e32eadc378084f35e639db451485327e474a29299dd23bad26",
+        "supersedes": "raw:source-a:source_a.v1:56f62b438a0016e32eadc378084f35e639db451485327e474a29299dd23bad26"
+      },
+      "passed": true,
+      "scenario": "correction"
+    },
+    {
+      "check_id": "correction.original_preserved",
+      "description": "original raw rows, canonical rows, and decisions are intact after correction",
+      "detail": {
+        "canonical_transactions": 3,
+        "decisions_preserved": true,
+        "raw_records": 3
+      },
+      "passed": true,
+      "scenario": "correction"
+    },
+    {
+      "check_id": "correction.new_canonical",
+      "description": "corrected payload creates a new canonical version and never mutates the original",
+      "detail": 3,
+      "passed": true,
+      "scenario": "correction"
+    },
+    {
+      "check_id": "correction.history_visible",
+      "description": "original and corrected payloads remain retrievable with validation and audit history",
+      "detail": {
+        "audit_events": 20
+      },
+      "passed": true,
+      "scenario": "correction"
+    },
+    {
+      "check_id": "correction.replay_idempotent",
+      "description": "re-running the pipeline after correction adds no duplicate authoritative rows",
+      "detail": {
+        "canonical": 3,
+        "raw": 3,
+        "reconciliations": 4
+      },
+      "passed": true,
+      "scenario": "correction"
+    },
+    {
+      "check_id": "restart.reopen_preserves_state",
+      "description": "reopening the persisted database reproduces identical authoritative state",
+      "detail": {
+        "first": {
+          "audit": 20,
+          "canonical": 4,
+          "raw": 4,
+          "reconciliations": 2
+        },
+        "second": {
+          "audit": 20,
+          "canonical": 4,
+          "raw": 4,
+          "reconciliations": 2
+        },
+        "signature_stable": true
+      },
+      "passed": true,
+      "scenario": "restart"
+    }
+  ],
+  "environment": {
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "python": "3.12.3 (main, Jul 15 2026, 23:46:41) [GCC 13.3.0]",
+    "sqlite": "3.45.1"
+  },
+  "manifest_sha256": "8902b2efb05940fcdb38bcca3c298a01e1eac69cc9bfac117321d96c100cca3e",
+  "scenarios": {
+    "correction": {
+      "outcomes_after_correction": {
+        "P-1": {
+          "counterpart": null,
+          "outcome": "UNMATCHED_A",
+          "reconciliation_id": "reconciliation:ddcfc73fff6e583d4117efabb9d2e11952778aefb56839a895c1f7aff635eb90",
+          "reconciliation_version": 1,
+          "state": "UNMATCHED_A"
+        },
+        "Q-1": {
+          "counterpart": null,
+          "outcome": "AMBIGUOUS",
+          "reconciliation_id": "reconciliation:6245b080a7fe6164aa3362c4f254b8c2c9d0d1c393ea152b625bf671f0105616",
+          "reconciliation_version": 1,
+          "state": "AMBIGUOUS"
+        }
+      },
+      "row_counts": {
+        "audit_events": 20,
+        "canonical_transactions": 3,
+        "raw_records": 3,
+        "reconciliations": 4
+      },
+      "signature": "9be91ea010aa6ea7398c276cc398788f2fab08704725fecd07f56a5ed6431a68"
+    },
+    "portfolio": {
+      "api": {
+        "export_redacted": true,
+        "report_batch_a_outcomes": {
+          "AMBIGUOUS": 2,
+          "DUPLICATE": 2,
+          "INVALID": 1,
+          "MATCHED": 2,
+          "MISMATCHED": 3,
+          "UNMATCHED_A": 1
+        },
+        "report_outcomes": {
+          "AMBIGUOUS": 4,
+          "DUPLICATE": 3,
+          "INVALID": 1,
+          "MATCHED": 2,
+          "MISMATCHED": 3,
+          "UNMATCHED_A": 1,
+          "UNMATCHED_B": 1
+        },
+        "scoped_reconciliation_count": 11
+      },
+      "initial_decision_counts": {
+        "AMBIGUOUS": 3,
+        "DUPLICATE": 3,
+        "INVALID": 1,
+        "MATCHED": 2,
+        "MISMATCHED": 2,
+        "UNMATCHED_A": 1,
+        "UNMATCHED_B": 1
+      },
+      "record_outcomes": {
+        "A001": "MATCHED",
+        "A002": "MATCHED",
+        "A003": "UNMATCHED_A",
+        "A004": "AMBIGUOUS",
+        "A005": "INVALID",
+        "A006": "MISMATCHED",
+        "A007": "MISMATCHED",
+        "B991": "MATCHED",
+        "B992": "MATCHED",
+        "B993": "UNMATCHED_B",
+        "B994": "AMBIGUOUS",
+        "B995": "AMBIGUOUS",
+        "B996": "MISMATCHED",
+        "B997": "MISMATCHED",
+        "D-A1": "DUPLICATE",
+        "D-A2": "DUPLICATE",
+        "D-B1": "DUPLICATE"
+      },
+      "resolutions": [
+        {
+          "discrepancy_id": "discrepancy:d833e835e8be31a711632d45544d7edbfaa68e0fdc57d4cd3e4259ce1be0f6a3",
+          "reconciliation_outcome": "AMBIGUOUS",
+          "record_id": "A004",
+          "resolution_type": "AUTOMATIC"
+        },
+        {
+          "discrepancy_id": "discrepancy:b4d62e284dbdd1bf9a9cfc18aea1f2cd1fc505f142cf012e2c5a96e903f55679",
+          "reconciliation_outcome": "MISMATCHED",
+          "record_id": "A006",
+          "resolution_type": "MANUAL_APPROVED"
+        },
+        {
+          "discrepancy_id": "discrepancy:2ddbd5de34cc976ad7bc6d38fae7fd2e2ed72aef975855335ed164e0b8f971b7",
+          "reconciliation_outcome": "MISMATCHED",
+          "record_id": "A007",
+          "resolution_type": "DEFERRED"
+        },
+        {
+          "discrepancy_id": "discrepancy:7b3b5d50c451c79552e0e43adc0bca7f51f4c11e5078cccebc27c2ee0ff084c9",
+          "reconciliation_outcome": "AMBIGUOUS",
+          "record_id": "B994",
+          "resolution_type": "REJECTED"
+        }
+      ],
+      "row_counts": {
+        "audit_events": 94,
+        "canonical_transactions": 17,
+        "discrepancies": 5,
+        "raw_records": 18,
+        "reconciliations": 16,
+        "resolutions": 4
+      },
+      "signature": "260aaf5f02dec77af2d257d3e240b1651e27f16cc2bab72459e234fcc94ae5b7"
+    },
+    "restart": {
+      "counts": {
+        "audit": 20,
+        "canonical": 4,
+        "raw": 4,
+        "reconciliations": 2
+      },
+      "signature": "ceb58a75cba0d394a738b4f2165ce3003957148874691f33ec4e5efb8ac6db64"
+    },
+    "telemetry": {
+      "event_count": 10,
+      "events": [
+        "ledger.candidates.generated",
+        "ledger.identity.verified",
+        "ledger.ingestion.record_accepted",
+        "ledger.normalization.completed",
+        "ledger.validation.record_valid"
+      ],
+      "signature": "0c5d7b2074bfd9114f04ec6c0f212ab3bb2d058710ae4b9b3b20193604044268"
+    }
+  },
+  "schema_version": "product_proof_v1",
+  "signature": "a510679dde747834c310f532343dd200744117206fe0010d77f15591bd9c8cce"
+}

@@ -1,0 +1,200 @@
+{
+  "candidate_scaling": [
+    {
+      "all_pairs": 1024,
+      "candidate_count": 32,
+      "candidate_to_all_pairs_ratio": 0.03125,
+      "records_per_source": 32
+    },
+    {
+      "all_pairs": 4096,
+      "candidate_count": 64,
+      "candidate_to_all_pairs_ratio": 0.015625,
+      "records_per_source": 64
+    },
+    {
+      "all_pairs": 16384,
+      "candidate_count": 128,
+      "candidate_to_all_pairs_ratio": 0.0078125,
+      "records_per_source": 128
+    }
+  ],
+  "dataset": {
+    "payload_sha256": "d943f10cf5f69aea7caa38c2879edc6a8b5e45e204c491f61e07d4e98cf10624",
+    "shape": "paired source_a.v1/source_b.v1 records; unique reference and amount/date keys; every 8th pair direction mismatch",
+    "sizes": [
+      32,
+      64,
+      128
+    ]
+  },
+  "environment": {
+    "machine": "x86_64",
+    "pid": 1692341,
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "python": "3.12.3 (main, Jul 15 2026, 23:46:41) [GCC 13.3.0]",
+    "sqlite": "3.45.1"
+  },
+  "method": {
+    "clock": "time.perf_counter",
+    "correctness": "stable SHA-256 signature of identities, candidates, and outcomes",
+    "latency_statistic": "median and nearest-rank p95",
+    "measured_iterations": 5,
+    "warmup_iterations": 1
+  },
+  "results": {
+    "128": {
+      "candidate_distribution": {
+        "all_pairs_comparison": 16384,
+        "count": 128,
+        "max": 1,
+        "median": 1.0,
+        "min": 1
+      },
+      "correctness_signature": "c45d4c40ad0453e76f68d3a39781c1d8a4eed7d622c9044c01075ad4548ac55f",
+      "peak_memory_bytes": 1361477,
+      "records_per_source": 128,
+      "records_total": 256,
+      "resolution_discrepancies": 16,
+      "stages": {
+        "candidate_generation": {
+          "median_seconds": 0.04768264992162585,
+          "p95_seconds": 0.047776810941286385,
+          "throughput_records_per_second": 5368.829132205895
+        },
+        "identity": {
+          "median_seconds": 0.008768298896029592,
+          "p95_seconds": 0.00893845607060939,
+          "throughput_records_per_second": 29196.085014382938
+        },
+        "ingestion": {
+          "median_seconds": 0.09412731498014182,
+          "p95_seconds": 0.11509034596383572,
+          "throughput_records_per_second": 2719.720625771687
+        },
+        "matching_reconciliation": {
+          "median_seconds": 0.06351496302522719,
+          "p95_seconds": 0.06496872194111347,
+          "throughput_records_per_second": 4030.5463123440795
+        },
+        "normalization": {
+          "median_seconds": 0.07706201588734984,
+          "p95_seconds": 0.07930376997683197,
+          "throughput_records_per_second": 3321.999782282153
+        },
+        "resolution": {
+          "median_seconds": 0.0009350079344585538,
+          "p95_seconds": 0.0012147690868005157,
+          "throughput_records_per_second": 273794.4680097768
+        },
+        "validation": {
+          "median_seconds": 0.09092971205245703,
+          "p95_seconds": 0.09519127698149532,
+          "throughput_records_per_second": 2815.361384321931
+        }
+      }
+    },
+    "32": {
+      "candidate_distribution": {
+        "all_pairs_comparison": 1024,
+        "count": 32,
+        "max": 1,
+        "median": 1.0,
+        "min": 1
+      },
+      "correctness_signature": "ead9aa6adb4dc597b17ecf2aa6587ba482012e901560c0051acc1c6fe4f55c76",
+      "peak_memory_bytes": 367076,
+      "records_per_source": 32,
+      "records_total": 64,
+      "resolution_discrepancies": 4,
+      "stages": {
+        "candidate_generation": {
+          "median_seconds": 0.012666237889789045,
+          "p95_seconds": 0.027410382055677474,
+          "throughput_records_per_second": 5052.802620389274
+        },
+        "identity": {
+          "median_seconds": 0.002341515035368502,
+          "p95_seconds": 0.0038202209398150444,
+          "throughput_records_per_second": 27332.730746240042
+        },
+        "ingestion": {
+          "median_seconds": 0.046170233050361276,
+          "p95_seconds": 0.04644244292285293,
+          "throughput_records_per_second": 1386.1745062059895
+        },
+        "matching_reconciliation": {
+          "median_seconds": 0.016304463963024318,
+          "p95_seconds": 0.029608280980028212,
+          "throughput_records_per_second": 3925.305373126086
+        },
+        "normalization": {
+          "median_seconds": 0.027599404100328684,
+          "p95_seconds": 0.03936611011158675,
+          "throughput_records_per_second": 2318.8906458758584
+        },
+        "resolution": {
+          "median_seconds": 0.0013672380009666085,
+          "p95_seconds": 0.0014945799484848976,
+          "throughput_records_per_second": 46809.69952177554
+        },
+        "validation": {
+          "median_seconds": 0.04057504003867507,
+          "p95_seconds": 0.0445363629842177,
+          "throughput_records_per_second": 1577.32438314286
+        }
+      }
+    },
+    "64": {
+      "candidate_distribution": {
+        "all_pairs_comparison": 4096,
+        "count": 64,
+        "max": 1,
+        "median": 1.0,
+        "min": 1
+      },
+      "correctness_signature": "69a8998879db39163e9a3078ee0b21b3bc260ea0a97f88b308d42e7bcd87e75b",
+      "peak_memory_bytes": 702739,
+      "records_per_source": 64,
+      "records_total": 128,
+      "resolution_discrepancies": 8,
+      "stages": {
+        "candidate_generation": {
+          "median_seconds": 0.02350094693247229,
+          "p95_seconds": 0.024776687962003052,
+          "throughput_records_per_second": 5446.5890403393405
+        },
+        "identity": {
+          "median_seconds": 0.004524902091361582,
+          "p95_seconds": 0.00472575391177088,
+          "throughput_records_per_second": 28287.90489066332
+        },
+        "ingestion": {
+          "median_seconds": 0.04617158498149365,
+          "p95_seconds": 0.04632111010141671,
+          "throughput_records_per_second": 2772.267836404242
+        },
+        "matching_reconciliation": {
+          "median_seconds": 0.030884151929058135,
+          "p95_seconds": 0.03224941692315042,
+          "throughput_records_per_second": 4144.520474255534
+        },
+        "normalization": {
+          "median_seconds": 0.039261343074031174,
+          "p95_seconds": 0.039687122916802764,
+          "throughput_records_per_second": 3260.2043123854232
+        },
+        "resolution": {
+          "median_seconds": 0.0009097299771383405,
+          "p95_seconds": 0.000911753042601049,
+          "throughput_records_per_second": 140701.09067158436
+        },
+        "validation": {
+          "median_seconds": 0.04589401604607701,
+          "p95_seconds": 0.04783004196360707,
+          "throughput_records_per_second": 2789.034628642863
+        }
+      }
+    }
+  }
+}
