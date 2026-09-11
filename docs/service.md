@@ -12,14 +12,39 @@ Process model:
 
 - One OS process, one authoritative SQLite database.
 - No background workers, queues, or schedulers in the portfolio cut. Every
-  authoritative write happens inside the HTTP request that triggers it, so a
-  failed request leaves no partial business state (the domain/persistence
-  transactions already guarantee atomicity).
+  authoritative write the *service* performs happens inside the HTTP request
+  that triggers it, so a failed request leaves no partial business state (the
+  domain/persistence transactions already guarantee atomicity). Processing
+  writes (Layers 1-11) happen out of band; see **Batch progression** below.
 - The HTTP boundary may use worker threads; the shared SQLite connection is
   serialized by a re-entrant lock (`_SynchronizedConnection`), so concurrent
   requests cannot interleave statements on one connection.
 - Restart is safe: completed authoritative work is never repeated incorrectly,
   and a reopened database reproduces identical state.
+
+## Batch progression
+
+The service is the **data plane**, not the processing plane. `Architecture.md`
+§39 and §2157 place Layers 1-11 (ingest → reconcile) behind a controlled
+pipeline runner and publish only Layer 12 (reporting and authorized resolution)
+over HTTP:
+
+- `POST /v1/batches` and `POST /v1/batches/{batch_id}/records` create and
+  preserve raw evidence; they do not advance a batch.
+- A batch stays `RECEIVED` until a pipeline runner validates, normalizes,
+  identifies, generates candidates, matches, and reconciles its records.
+- The v1.0 contract exposes no processing trigger. `GET /v1/batches` lists
+  batches and `GET /v1/batches/{batch_id}` reports their counters, but a client
+  cannot start processing, so the dashboard cannot advance a batch by itself.
+
+The supported operator entrypoint is **not yet published**. The only drivers in
+the repository today are proof/benchmark drivers
+(`product_proof/run_product_proof.py`, `benchmarks/run_performance.py`, and the
+frontend end-to-end fixture seeder), which sequence the layers for fixed
+fixtures rather than operate a stored batch. Publishing a supported runner —
+batch selection by state, idempotent re-run, explicit partial-failure state,
+exit codes, and telemetry — is tracked as EMM-110 and is a prerequisite for the
+operator workflow in Epics 7-8.
 
 ## Configuration
 
