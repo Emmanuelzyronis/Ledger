@@ -51,12 +51,12 @@ also keeps the token server-side.
 Two contract realities shape the screens and are stated in the UI rather than
 worked around:
 
-- The contract publishes **no operation that enumerates batches**, so `/ingest`
-  is a workflow (register source → create batch → ingest records) plus a lookup
-  by the batch id returned from `POST /v1/batches`.
+- The contract publishes **no operation that enumerates batches** (tracked as
+  EMM-109), so `/ingest` is a workflow (register source → create batch → ingest
+  records) plus a lookup by the batch id returned from `POST /v1/batches`.
 - **Pipeline execution is not an HTTP operation** in v1.0 (Architecture §37,
-  §2157), so a batch created here stays `RECEIVED` until the repository's
-  pipeline runner is invoked. `/ingest` says so explicitly.
+  §2157, tracked as EMM-110), so a batch created here stays `RECEIVED` until the
+  repository's pipeline runner is invoked. `/ingest` says so explicitly.
 
 ## End-to-end tests
 
@@ -162,23 +162,23 @@ npm run check                 # must pass first: it regenerates and verifies the
 npx vercel deploy --prod --yes
 ```
 
-|                    |                                                                                                                                                                                                                 |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Production aliases | `https://ledger-dashboard-vert.vercel.app`, `https://ledger-dashboard-ibiezugbeemmanuel.vercel.app`                                                                                                             |
-| Not this app       | `https://ledger-dashboard.vercel.app` — that subdomain belongs to a different Vercel account                                                                                                                    |
-| Framework          | `vercel.json` pins `"framework": "nextjs"`. Without it a CLI-created project is detected as "Other" and no build runs (the deploy serves nothing).                                                              |
-| Remote build       | `next build` only. The generated client is uploaded as source, so the remote build does not need `docs/openapi/ledger.v1.json` — and it never regenerates. Always run `npm run check` locally before deploying. |
-| Environment        | None set yet: the app makes no live `/v1` calls. When data wiring lands, add `LEDGER_API_BASE_URL` and the bearer token with `vercel env` — never in a committed file.                                          |
-| Access             | Deployment Protection (Vercel Authentication, `all_except_custom_domains`) is on, so anonymous visitors get the Vercel SSO wall. Use `vercel curl` from CI/automation.                                          |
+|                    |                                                                                                                                                                                                                                                                                                                                    |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Production aliases | `https://ledger-dashboard-vert.vercel.app`, `https://ledger-dashboard-ibiezugbeemmanuel.vercel.app`                                                                                                                                                                                                                                |
+| Not this app       | `https://ledger-dashboard.vercel.app` — that subdomain belongs to a different Vercel account                                                                                                                                                                                                                                       |
+| Framework          | `vercel.json` pins `"framework": "nextjs"`. Without it a CLI-created project is detected as "Other" and no build runs (the deploy serves nothing).                                                                                                                                                                                 |
+| Remote build       | `next build` only. The generated client is uploaded as source, so the remote build does not need `docs/openapi/ledger.v1.json` — and it never regenerates. Always run `npm run check` locally before deploying.                                                                                                                    |
+| Environment        | **Not set — the deployed build is stale.** Data wiring has landed (commit `e3939e0`), so the app makes live `/v1` calls and the deployment needs `LEDGER_API_BASE_URL` and the bearer token via `vercel env` — never in a committed file. Until then the production URL still serves the pre-wiring skeleton (tracked as EMM-111). |
+| Access             | Deployment Protection (Vercel Authentication, `all_except_custom_domains`) is on, so anonymous visitors get the Vercel SSO wall. Use `vercel curl` from CI/automation.                                                                                                                                                             |
 
 ## Not done in this pass
 
 - Playwright/Remotion demo capture — explicitly out of scope.
-- EMM-103 (same-batch idempotency defect) is a service-side issue and is not
-  touched here; the contract documents it as a known limitation.
+- EMM-103 (same-batch idempotency defect, re-confirmed open) is a service-side
+  issue and is not touched here; the contract documents it as a known limitation.
 - No processing trigger exists, so the dashboard cannot advance a batch from
   `RECEIVED` to reconciliation. Adding one is an API/architecture decision, not
-  a frontend decision; see the note in the `/ingest` screen.
+  a frontend decision; see the note in the `/ingest` screen. Tracked as EMM-110.
 
 ## Service defects found by the end-to-end pass
 
