@@ -205,6 +205,11 @@ Layer 15 product-proof evidence is produced by
 `PYTHONPATH=src python3 product_proof/run_product_proof.py`, covered by
 `tests/test_product_proof.py`, and documented in `docs/product-proof.md`.
 
+Epic 5 database-operations evidence is produced by
+`PYTHONPATH=src python3 -m ledger.ops drill` (seeded with
+`product_proof/seed_database.py`), covered by `tests/test_database_operations.py`, and
+documented in `docs/database-operations.md`.
+
 ## 16. Architecture Changes
 
 If implementation requires changing `Architecture.md`, stop and report:

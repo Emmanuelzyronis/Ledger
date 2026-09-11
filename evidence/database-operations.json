@@ -1,0 +1,85 @@
+{
+  "database": "/tmp/ledger-ops-drill.sqlite3",
+  "environment": {
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "sqlite": "3.45.1"
+  },
+  "generated_at": "2026-09-11T13:03:50.601395+00:00",
+  "measurements": {
+    "backup_bytes": 315392,
+    "backup_seconds": 0.014,
+    "drill_seconds": 0.0358,
+    "restore_seconds": 0.0135
+  },
+  "method": "VACUUM INTO snapshot -> read-only verify -> restore copy -> re-verify",
+  "results": {
+    "authoritative_state_preserved": true,
+    "backup_verification": {
+      "foreign_key_violations": 0,
+      "integrity": "ok",
+      "migration_history": [
+        "0001",
+        "0002"
+      ],
+      "missing_tables": [],
+      "ok": true,
+      "path": "/tmp/ledger-ops-work/ledger-backup.sqlite3"
+    },
+    "corrupt_backup_refused": true,
+    "corruption_detected": true,
+    "corruption_error": "file is not a database",
+    "immutability_enforced_after_restore": true,
+    "restore_verification": {
+      "foreign_key_violations": 0,
+      "integrity": "ok",
+      "migration_history": [
+        "0001",
+        "0002"
+      ],
+      "missing_tables": [],
+      "ok": true,
+      "path": "/tmp/ledger-ops-work/ledger-restored.sqlite3"
+    },
+    "tables_before": {
+      "audit_events": 75,
+      "batches": 2,
+      "canonical_transactions": 16,
+      "discrepancies": 5,
+      "match_candidates": 11,
+      "processing_attempts": 0,
+      "raw_records": 17,
+      "reconciliations": 13,
+      "resolutions": 0,
+      "sources": 2
+    }
+  },
+  "retention": {
+    "prunable": [],
+    "retained": [
+      "audit_events",
+      "batches",
+      "canonical_transactions",
+      "discrepancies",
+      "ingestion_submissions",
+      "match_candidates",
+      "processing_attempts",
+      "raw_record_batches",
+      "raw_records",
+      "reconciliations",
+      "resolutions",
+      "schema_migrations",
+      "sources",
+      "validation_results"
+    ]
+  },
+  "rpo_rto": {
+    "note": "Architecture D-009 defers numerical SLOs; approving RPO/RTO is an architecture-owner decision.",
+    "observed": {
+      "backup_seconds": 0.014,
+      "restore_seconds": 0.0135
+    },
+    "status": "targets_unapproved"
+  },
+  "schema_version": 1
+}

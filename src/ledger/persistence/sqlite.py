@@ -19,6 +19,8 @@ from pathlib import Path
 from typing import Any, Iterator
 from collections.abc import Mapping
 
+from ..migrations import MigrationRunner
+
 from ledger.domain import (
     AuditEvent,
     AuditEventType,
@@ -153,6 +155,10 @@ class LedgerDatabase:
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA foreign_keys = ON")
         self._create_schema()
+        # Versioned history on top of the idempotent baseline schema; see
+        # ledger.migrations for the ordering and adoption rules.
+        self.migrations = MigrationRunner(self)
+        self.migrations.apply()
         self.sources = SourceRepository(self)
         self.batches = BatchRepository(self)
         self.processing_attempts = ProcessingAttemptRepository(self)
