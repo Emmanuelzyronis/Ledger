@@ -30,7 +30,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List batches visible to the caller
+         * @description Lists batch metadata and counters for batches in the caller's source scope, ordered by `received_at` then `batch_id`. The optional `source_id` query narrows the list; a caller may not list a source outside its scope. Batches are read-only projections of authoritative batch state.
+         */
+        get: operations["listBatches"];
         put?: never;
         /**
          * Create an ingestion batch
@@ -335,6 +339,10 @@ export interface components {
             rejected_input_count: number;
             unmatched_count: number;
         };
+        BatchListResponse: {
+            correlation_id: components["schemas"]["CorrelationId"];
+            data: components["schemas"]["Batch"][];
+        };
         BatchResponse: {
             correlation_id: components["schemas"]["CorrelationId"];
             data: components["schemas"]["Batch"];
@@ -605,6 +613,8 @@ export interface components {
         EntityType: string;
         /** @description Reconciliation decision identifier. */
         ReconciliationId: string;
+        /** @description Filter to one source. The caller must be scoped to that source. */
+        SourceIdQuery: string;
     };
     requestBodies: never;
     headers: never;
@@ -644,6 +654,42 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listBatches: {
+        parameters: {
+            query?: {
+                /** @description Filter to one source. The caller must be scoped to that source. */
+                source_id?: components["parameters"]["SourceIdQuery"];
+            };
+            header?: {
+                /** @description Client-supplied correlation identifier, echoed in the response body. */
+                "X-Correlation-ID"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Batch rows visible to the caller's scope. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /** @example {
+                     *       "data": [],
+                     *       "correlation_id": "0b7e5f0a-1a2b-4c3d-8e4f-5a6b7c8d9e0f"
+                     *     } */
+                    "application/json": components["schemas"]["BatchListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
             500: components["responses"]["InternalError"];
         };

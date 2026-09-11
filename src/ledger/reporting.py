@@ -66,6 +66,12 @@ class ReportingService:
         rows = self._rows("batches", " WHERE batch_id = ?", (batch_id,))
         return rows[0] if rows else None
 
+    def batches(self, *, source_id: str | None = None) -> list[dict[str, Any]]:
+        """Batch rows in a deterministic order: received_at, then batch_id."""
+        if source_id:
+            return self._rows("batches", " WHERE source_id = ? ORDER BY received_at, batch_id", (source_id,))
+        return self._rows("batches", " ORDER BY received_at, batch_id")
+
     def reconciliations(self, *, batch_id: str | None = None) -> list[dict[str, Any]]:
         where = " WHERE batch_id = ?" if batch_id else ""
         return self._rows("reconciliations", where, (batch_id,) if batch_id else ())

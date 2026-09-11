@@ -11,6 +11,7 @@ export const CONTRACT_TITLE = "LEDGER Reconciliation API" as const;
 /** Operation id -> the path/method pair it addresses. Generated from the artifact. */
 export interface OperationIndex {
   getAuditTrail: { path: "/v1/audit/{entity_type}/{entity_id}"; method: "get" };
+  listBatches: { path: "/v1/batches"; method: "get" };
   createBatch: { path: "/v1/batches"; method: "post" };
   getBatch: { path: "/v1/batches/{batch_id}"; method: "get" };
   ingestRecord: { path: "/v1/batches/{batch_id}/records"; method: "post" };
@@ -38,6 +39,7 @@ export interface OperationPathParams {
 
 /** Query parameters, keyed by operation id. Operations with none are absent. */
 export interface OperationQueryParams {
+  listBatches: { source_id?: string };
   listDiscrepancies: { batch_id?: string };
   exportData: { batch_id?: string };
   listReconciliations: { batch_id?: string };
@@ -65,6 +67,17 @@ export const GENERATED_OPERATIONS = {
     isPublic: false,
     pathParams: ["entity_type","entity_id"],
     queryParams: [],
+    hasRequestBody: false,
+    successStatus: "200",
+  },
+  listBatches: {
+    operationId: "listBatches",
+    method: "get",
+    path: "/v1/batches",
+    tag: "Reporting",
+    isPublic: false,
+    pathParams: [],
+    queryParams: ["source_id"],
     hasRequestBody: false,
     successStatus: "200",
   },
@@ -215,6 +228,7 @@ export const GENERATED_OPERATIONS = {
 
 export const GENERATED_OPERATION_IDS = [
   "getAuditTrail",
+  "listBatches",
   "createBatch",
   "getBatch",
   "ingestRecord",

@@ -23,7 +23,7 @@ indexed candidate generation, matching/reconciliation, and resolution. It record
 signatures, stage latency/throughput, peak memory, candidate distributions, and environment metadata in
 `evidence/performance-baseline.json`; methodology is documented in `docs/performance.md`.
 
-Current verification: 182 tests pass; `make check`, `python3 -m compileall src tests benchmarks product_proof`, and `git diff --check` also pass. Late-arrival reconciliation supersession follows the LA-1 rule in `Architecture.md` §28.1.
+Current verification: 184 tests pass; `make check`, `python3 -m compileall src tests benchmarks product_proof`, and `git diff --check` also pass. Late-arrival reconciliation supersession follows the LA-1 rule in `Architecture.md` §28.1.
 
 ## Database operations
 

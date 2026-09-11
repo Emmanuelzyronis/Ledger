@@ -76,6 +76,9 @@ test("the ingest screen writes through the service and reads the counters back",
   await expect(page).toHaveURL(new RegExp(`batch_id=${encodeURIComponent(batchId)}`));
   await expect(stat(page, "Records received")).toHaveText("0");
 
+  // The batch is discoverable in the list, without a hand-copied id.
+  await expect(panel(page, "Batches").getByRole("link", { name: batchId })).toBeVisible();
+
   const ingest = panel(page, "Ingest record");
   await ingest.getByLabel("batch_id").fill(batchId);
   await ingest.getByLabel("payload (source-native JSON)").fill(

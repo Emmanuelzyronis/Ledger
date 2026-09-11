@@ -1,7 +1,7 @@
 /**
- * A plain GET form. The contract publishes no "list batches" operation, so a
- * batch is addressed by the id returned from `createBatch` and looked up
- * directly; there is no endpoint to enumerate them and none is invented.
+ * A plain GET form used by the pages that narrow a projection to one batch.
+ * Batches are discovered on `/ingest`, which lists them through the contract's
+ * `listBatches` operation; these filters address an already-known id.
  */
 export function BatchLookupForm({
   action,

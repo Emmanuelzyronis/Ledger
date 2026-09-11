@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
-import { BatchLookupForm } from "@/components/batch-lookup-form";
 import { ContractCalls } from "@/components/contract-calls";
 import { DataError } from "@/components/data-error";
 import { IngestWorkflow } from "@/components/ingest-workflow";
@@ -11,14 +11,21 @@ import { Table, TBody, Td, Th, THead, Tr } from "@/components/table";
 import { loadData } from "@/lib/api/server";
 import { BATCH_STATE_TONE } from "@/lib/contract/status";
 import { formatCount, formatTimestamp, humanizeEnum } from "@/lib/format";
+import { route } from "@/lib/routes";
 
 export const metadata: Metadata = { title: "Ingest Status — LEDGER" };
 
-const CONTRACT_OPERATIONS = ["registerSource", "createBatch", "ingestRecord", "getBatch"] as const;
+const CONTRACT_OPERATIONS = [
+  "registerSource",
+  "createBatch",
+  "listBatches",
+  "ingestRecord",
+  "getBatch",
+] as const;
 
 const TITLE = "Ingest Status";
 const DESCRIPTION =
-  "Register a source, create a batch, ingest source-native records, and read a batch back by id. Raw evidence is preserved on acceptance; rejected input never disappears without an explicit state.";
+  "Register a source, create a batch, ingest source-native records, and read batch state and counters. Raw evidence is preserved on acceptance; rejected input never disappears without an explicit state.";
 
 const COUNTERS = [
   ["received_count", "Received"],
@@ -37,10 +44,24 @@ const COUNTERS = [
 export default async function IngestStatusPage({
   searchParams,
 }: {
-  searchParams: Promise<{ batch_id?: string }>;
+  searchParams: Promise<{ batch_id?: string; source_id?: string }>;
 }) {
-  const { batch_id: batchId } = await searchParams;
-  const batch = batchId ? await loadData("getBatch", { params: { batch_id: batchId } }) : null;
+  const { batch_id: batchId, source_id: sourceId } = await searchParams;
+  const [list, batch] = await Promise.all([
+    loadData("listBatches", sourceId ? { query: { source_id: sourceId } } : undefined),
+    batchId ? loadData("getBatch", { params: { batch_id: batchId } }) : Promise.resolve(null),
+  ]);
+
+  if (!list.ok) {
+    return (
+      <DataError
+        title={TITLE}
+        description={DESCRIPTION}
+        error={list.error}
+        operations={CONTRACT_OPERATIONS}
+      />
+    );
+  }
 
   if (batch && !batch.ok) {
     return (
@@ -53,6 +74,7 @@ export default async function IngestStatusPage({
     );
   }
 
+  const batches = list.data;
   const counters = batch?.ok ? batch.data.counters : null;
   const stats: readonly Stat[] = [
     { label: "Records received", value: counters ? formatCount(counters.received_count) : "—" },
@@ -77,13 +99,87 @@ export default async function IngestStatusPage({
         }
       />
 
-      <BatchLookupForm action="/ingest" defaultBatchId={batchId} />
-      <p className="mb-4 text-2xs text-ink-subtle">
-        The published contract has no operation that enumerates batches, so a batch is addressed by
-        the id returned from <span className="font-mono">POST /v1/batches</span>.
-      </p>
+      <form action="/ingest" method="get" className="mb-4 flex flex-wrap items-end gap-2">
+        <div>
+          <label
+            htmlFor="ingest-filter-source-id"
+            className="block text-2xs uppercase tracking-wide text-ink-muted"
+          >
+            Filter by source_id
+          </label>
+          <input
+            id="ingest-filter-source-id"
+            name="source_id"
+            defaultValue={sourceId ?? ""}
+            placeholder="source-a"
+            className="mt-1 w-64 rounded-control border border-line bg-surface px-2 py-1 font-mono text-2xs text-ink placeholder:text-ink-subtle"
+          />
+        </div>
+        <button
+          type="submit"
+          className="rounded-control border border-line bg-surface-muted px-3 py-1 text-2xs font-medium text-ink"
+        >
+          Filter
+        </button>
+        {sourceId ? (
+          <Link href={route("/ingest")} className="text-2xs text-accent underline">
+            Clear filter
+          </Link>
+        ) : null}
+      </form>
 
       <SummaryBand stats={stats} columns={6} />
+
+      <section className="mb-4 rounded-panel border border-line bg-surface">
+        <h2 className="border-b border-line px-4 py-2 text-2xs font-medium uppercase tracking-wide text-ink-muted">
+          Batches{sourceId ? ` — ${sourceId}` : ""} — <span className="font-mono">listBatches</span>
+        </h2>
+        {batches.length ? (
+          <Table caption="Batches visible to the operator">
+            <THead>
+              <Tr>
+                <Th>Batch</Th>
+                <Th>Source / schema</Th>
+                <Th>State</Th>
+                <Th>Received</Th>
+                <Th align="right">Records</Th>
+              </Tr>
+            </THead>
+            <TBody>
+              {batches.map((row) => (
+                <Tr key={row.batch_id}>
+                  <Td>
+                    <Link
+                      className="font-mono text-2xs text-accent underline"
+                      href={route(`/ingest?batch_id=${encodeURIComponent(row.batch_id)}`)}
+                    >
+                      {row.batch_id}
+                    </Link>
+                  </Td>
+                  <Td className="font-mono text-2xs text-ink-muted">
+                    {row.source_id} — {row.schema_version}
+                  </Td>
+                  <Td>
+                    <StatusPill tone={BATCH_STATE_TONE[row.state]}>
+                      {humanizeEnum(row.state)}
+                    </StatusPill>
+                  </Td>
+                  <Td className="font-mono text-2xs text-ink-muted">
+                    {formatTimestamp(row.received_at)}
+                  </Td>
+                  <Td align="right" className="font-mono tabular-nums">
+                    {formatCount(row.counters.received_count)}
+                  </Td>
+                </Tr>
+              ))}
+            </TBody>
+          </Table>
+        ) : (
+          <p className="px-4 py-3 text-sm text-ink-muted">
+            No batches{sourceId ? ` for ${sourceId}` : ""} yet. Create one below.
+          </p>
+        )}
+      </section>
 
       <section className="mb-4 rounded-panel border border-line bg-surface">
         <h2 className="border-b border-line px-4 py-2 text-2xs font-medium uppercase tracking-wide text-ink-muted">
@@ -110,7 +206,7 @@ export default async function IngestStatusPage({
           </Table>
         ) : (
           <p className="px-4 py-3 text-sm text-ink-muted">
-            Look up a batch id to read its state, counters, and timeline.
+            Select a batch from the list to read its state, counters, and timeline.
           </p>
         )}
       </section>

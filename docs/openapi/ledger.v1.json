@@ -319,6 +319,56 @@
       }
     },
     "/v1/batches": {
+      "get": {
+        "operationId": "listBatches",
+        "tags": [
+          "Reporting"
+        ],
+        "summary": "List batches visible to the caller",
+        "description": "Lists batch metadata and counters for batches in the caller's source scope, ordered by `received_at` then `batch_id`. The optional `source_id` query narrows the list; a caller may not list a source outside its scope. Batches are read-only projections of authoritative batch state.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/SourceIdQuery"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch rows visible to the caller's scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchListResponse"
+                },
+                "example": {
+                  "data": [],
+                  "correlation_id": "0b7e5f0a-1a2b-4c3d-8e4f-5a6b7c8d9e0f"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
       "post": {
         "operationId": "createBatch",
         "tags": [
@@ -855,6 +905,16 @@
         },
         "description": "Filter to one batch. The caller must be scoped to the batch's source."
       },
+      "SourceIdQuery": {
+        "name": "source_id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Filter to one source. The caller must be scoped to that source."
+      },
       "BatchId": {
         "name": "batch_id",
         "in": "path",
@@ -1333,6 +1393,25 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/Batch"
+          },
+          "correlation_id": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      },
+      "BatchListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "correlation_id"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Batch"
+            }
           },
           "correlation_id": {
             "$ref": "#/components/schemas/CorrelationId"

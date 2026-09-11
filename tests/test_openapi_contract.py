@@ -51,6 +51,7 @@ IMPLEMENTED_OPERATIONS = {
     ("GET", "/v1/export"),
     ("POST", "/v1/sources"),
     ("POST", "/v1/batches"),
+    ("GET", "/v1/batches"),
     ("POST", "/v1/batches/{batch_id}/records"),
     ("GET", "/v1/batches/{batch_id}"),
     ("GET", "/v1/reconciliations"),
@@ -375,6 +376,8 @@ class ContractConformanceTests(unittest.TestCase):
         self.assertTrue(replay["data"]["duplicate_submission"])
 
         self.assert_conforms("GET", f"/v1/batches/{contract_batch}")
+        self.assert_conforms("GET", "/v1/batches")
+        self.assert_conforms("GET", "/v1/batches?source_id=contract-source")
         self.assert_conforms("GET", "/v1/reports")
         self.assert_conforms("GET", f"/v1/reports?batch_id={self.fixture['batch_a']}")
         self.assert_conforms("GET", "/v1/export")
@@ -600,6 +603,28 @@ class ScopedReadTests(unittest.TestCase):
             status, _ = self.service.handle(
                 "GET", path, None, {"Authorization": "Bearer reader-a"})
             self.assertEqual(status, 403, path)
+
+    def test_scoped_batch_list_returns_only_in_scope_batches(self):
+        operator = {"Authorization": "Bearer operator"}
+        status, payload = self.service.handle("GET", "/v1/batches", None, operator)
+        self.assertEqual(status, 200)
+        by_source = {row["source_id"] for row in payload["data"]}
+        self.assertEqual(by_source, {"source-a", "source-b"})
+
+        scoped = {"Authorization": "Bearer reader-a"}
+        status, scoped_payload = self.service.handle("GET", "/v1/batches", None, scoped)
+        self.assertEqual(status, 200)
+        self.assertEqual({row["source_id"] for row in scoped_payload["data"]}, {"source-a"})
+        self.assertTrue(all(row["source_id"] == "source-a" for row in scoped_payload["data"]))
+
+        status, filtered = self.service.handle("GET", "/v1/batches?source_id=source-a", None, scoped)
+        self.assertEqual(status, 200)
+        self.assertEqual(len(filtered["data"]), len(scoped_payload["data"]))
+
+    def test_scoped_reader_cannot_list_a_foreign_source(self):
+        status, _ = self.service.handle(
+            "GET", "/v1/batches?source_id=source-z", None, {"Authorization": "Bearer reader-a"})
+        self.assertEqual(status, 403)
 
     def test_percent_encoded_identifiers_resolve(self):
         target = self.discrepancies[0]["discrepancy_id"]

@@ -82,6 +82,11 @@ class LedgerAPI:
             batch_id = (body or {}).get("batch_id") if isinstance(body, dict) else None
             self._authorize_batch_filter(principal, batch_id)
             return self.reporting.report(batch_id=batch_id)
+        if method == "GET" and parts == ["batches"]:
+            source_id = (body or {}).get("source_id") if isinstance(body, dict) else None
+            if source_id is not None:
+                self._scope(principal, source_id)
+            return self._filter_rows(principal, self.reporting.batches(source_id=source_id))
         if method == "GET" and parts == ["export"]:
             batch_id = (body or {}).get("batch_id") if isinstance(body, dict) else None
             self._authorize_batch_filter(principal, batch_id)

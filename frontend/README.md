@@ -51,9 +51,9 @@ also keeps the token server-side.
 Two contract realities shape the screens and are stated in the UI rather than
 worked around:
 
-- The contract publishes **no operation that enumerates batches** (tracked as
-  EMM-109), so `/ingest` is a workflow (register source → create batch → ingest
-  records) plus a lookup by the batch id returned from `POST /v1/batches`.
+- `/ingest` lists batches through `GET /v1/batches` (added by EMM-109) with an
+  optional `source_id` filter, so a batch is never addressed by a hand-copied
+  id. The other screens still filter by an already-known `batch_id`.
 - **Pipeline execution is not an HTTP operation** in v1.0 (Architecture §37,
   §2157, tracked as EMM-110), so a batch created here stays `RECEIVED` until the
   repository's pipeline runner is invoked. `/ingest` says so explicitly.
@@ -141,13 +141,13 @@ Tokens live in `tailwind.config.ts`; the default palette is **replaced**, so
 
 ## Information architecture
 
-| Route                 | Purpose                                                | Contract operations                                                                               |
-| --------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| `/ingest`             | Register source, create batch, ingest, look up batch   | `registerSource`, `createBatch`, `ingestRecord`, `getBatch`                                       |
-| `/reconciliation`     | Matched/unmatched counts and the seven outcomes        | `getReport`, `listReconciliations`, `getReconciliation`                                           |
-| `/discrepancies`      | Filterable/sortable queue                              | `listDiscrepancies`, `getDiscrepancy`, `getReconciliation`, `getAuditTrail`, `resolveDiscrepancy` |
-| `/discrepancies/{id}` | Evidence, audit trail, resolution action, supersession | `getDiscrepancy`, `getReconciliation`, `getAuditTrail`, `resolveDiscrepancy`                      |
-| `/reports`            | Report projection and export scope                     | `getReport`, `exportData`                                                                         |
+| Route                 | Purpose                                                  | Contract operations                                                                               |
+| --------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `/ingest`             | Register source, create batch, ingest, list/read batches | `registerSource`, `createBatch`, `listBatches`, `ingestRecord`, `getBatch`                        |
+| `/reconciliation`     | Matched/unmatched counts and the seven outcomes          | `getReport`, `listReconciliations`, `getReconciliation`                                           |
+| `/discrepancies`      | Filterable/sortable queue                                | `listDiscrepancies`, `getDiscrepancy`, `getReconciliation`, `getAuditTrail`, `resolveDiscrepancy` |
+| `/discrepancies/{id}` | Evidence, audit trail, resolution action, supersession   | `getDiscrepancy`, `getReconciliation`, `getAuditTrail`, `resolveDiscrepancy`                      |
+| `/reports`            | Report projection and export scope                       | `getReport`, `exportData`                                                                         |
 
 Every screen also renders this list at the bottom, read from the generated
 operation index at render time.
