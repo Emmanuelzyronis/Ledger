@@ -34,8 +34,7 @@ export function ResolutionPanel({
   return (
     <section className="mt-4 rounded-panel border border-line bg-surface">
       <h2 className="border-b border-line px-4 py-2 text-2xs font-medium uppercase tracking-wide text-ink-muted">
-        Resolution action —{" "}
-        <span className="font-mono">POST /v1/discrepancies/{"{id}"}/resolve</span>
+        Resolve exception
       </h2>
       <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
         <form action={submit} className="space-y-3">
@@ -108,7 +107,7 @@ export function ResolutionPanel({
         <div className="space-y-3">
           <div className="rounded-panel border border-line bg-surface-muted px-4 py-3">
             <p className="text-2xs uppercase tracking-wide text-ink-muted">
-              {result?.ok ? "Recorded — ResolutionResult" : "On success — ResolutionResult"}
+              {result?.ok ? "Resolution recorded" : "Result"}
             </p>
             {result?.ok ? (
               <dl className="mt-2 grid grid-cols-2 gap-2 text-2xs">

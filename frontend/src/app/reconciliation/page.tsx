@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { BatchLookupForm } from "@/components/batch-lookup-form";
-import { ContractCalls } from "@/components/contract-calls";
 import { DataError } from "@/components/data-error";
+import { IdChip } from "@/components/id-chip";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
 import { SummaryBand, type Stat } from "@/components/summary-band";
@@ -16,12 +16,10 @@ import {
 } from "@/lib/contract/status";
 import { OUTCOMES } from "@/lib/contract/enums";
 import { loadData } from "@/lib/api/server";
-import { formatCount, humanizeEnum, orDash, percent } from "@/lib/format";
+import { formatCount, humanizeEnum, percent } from "@/lib/format";
 import { route } from "@/lib/routes";
 
 export const metadata: Metadata = { title: "Reconciliation — LEDGER" };
-
-const CONTRACT_OPERATIONS = ["getReport", "listReconciliations", "getReconciliation"] as const;
 
 const TITLE = "Reconciliation";
 const DESCRIPTION =
@@ -41,24 +39,10 @@ export default async function ReconciliationPage({
   ]);
 
   if (!report.ok) {
-    return (
-      <DataError
-        title={TITLE}
-        description={DESCRIPTION}
-        error={report.error}
-        operations={CONTRACT_OPERATIONS}
-      />
-    );
+    return <DataError title={TITLE} description={DESCRIPTION} error={report.error} />;
   }
   if (!decisions.ok) {
-    return (
-      <DataError
-        title={TITLE}
-        description={DESCRIPTION}
-        error={decisions.error}
-        operations={CONTRACT_OPERATIONS}
-      />
-    );
+    return <DataError title={TITLE} description={DESCRIPTION} error={decisions.error} />;
   }
 
   const matched = report.data.current_outcomes.MATCHED ?? 0;
@@ -138,9 +122,9 @@ export default async function ReconciliationPage({
                     <span className="w-10 shrink-0 text-right font-mono text-2xs tabular-nums text-ink-muted">
                       {percent(current, report.data.current_reconciliation_count)}
                     </span>
-                    <span className="block h-1 w-full bg-surface-sunken">
+                    <span className="block h-4 w-full rounded-sm bg-surface-sunken">
                       <span
-                        className={`block h-1 ${TONE_BAR_CLASS[OUTCOME_TONE[outcome]]}`}
+                        className={`block h-4 rounded-sm ${TONE_BAR_CLASS[OUTCOME_TONE[outcome]]}`}
                         style={{ width: `${share.toFixed(1)}%` }}
                       />
                     </span>
@@ -153,27 +137,23 @@ export default async function ReconciliationPage({
       </Table>
 
       <h2 className="mb-2 mt-6 text-2xs font-medium uppercase tracking-wide text-ink-muted">
-        Reconciliation decisions{batchId ? ` — batch ${batchId}` : ""}
+        Decisions{batchId ? ` — batch ${batchId}` : ""}
       </h2>
       <Table caption="Reconciliation decisions">
         <THead>
           <Tr>
-            <Th>Reconciliation</Th>
-            <Th>Batch</Th>
+            <Th>ID</Th>
             <Th>Outcome</Th>
-            <Th>State</Th>
+            <Th>Batch</Th>
+            <Th>Records (A / B)</Th>
             <Th align="right">Version</Th>
             <Th>Supersedes</Th>
-            <Th>Resolution</Th>
-            <Th>Source A record</Th>
-            <Th>Source B record</Th>
-            <Th>Rule version</Th>
           </Tr>
         </THead>
         <TBody>
           {decisions.data.length === 0 ? (
             <Tr>
-              <Td colSpan={10} className="py-6 text-center text-sm text-ink-muted">
+              <Td colSpan={6} className="py-6 text-center text-sm text-ink-muted">
                 No reconciliation decisions in this scope.
               </Td>
             </Tr>
@@ -183,48 +163,43 @@ export default async function ReconciliationPage({
                 key={row.reconciliation_id}
                 accent={row.outcome ? OUTCOME_TONE[row.outcome] : "pending"}
               >
-                <Td className="whitespace-nowrap font-mono text-2xs">{row.reconciliation_id}</Td>
-                <Td>
-                  <Link
-                    href={route(`/reconciliation?batch_id=${encodeURIComponent(row.batch_id)}`)}
-                    className="font-mono text-2xs"
-                  >
-                    {row.batch_id}
-                  </Link>
-                </Td>
-                <Td className="whitespace-nowrap text-2xs">
-                  {row.outcome ? OUTCOME_LABEL[row.outcome] : "—"}
+                <Td className="whitespace-nowrap">
+                  <IdChip id={row.reconciliation_id} />
                 </Td>
                 <Td>
                   <StatusPill tone={row.outcome ? OUTCOME_TONE[row.outcome] : "pending"}>
-                    {humanizeEnum(row.state)}
+                    {row.outcome ? OUTCOME_LABEL[row.outcome] : humanizeEnum(row.state)}
                   </StatusPill>
                 </Td>
-                <Td align="right" className="font-mono tabular-nums">
-                  {row.reconciliation_version}
+                <Td className="whitespace-nowrap">
+                  <Link
+                    href={route(`/reconciliation?batch_id=${encodeURIComponent(row.batch_id)}`)}
+                    className="text-2xs"
+                  >
+                    <IdChip id={row.batch_id} />
+                  </Link>
                 </Td>
-                <Td className="whitespace-nowrap font-mono text-2xs text-ink-muted">
-                  {orDash(row.supersedes_reconciliation_id)}
+                <Td className="whitespace-nowrap">
+                  <div className="flex flex-col gap-0.5">
+                    <IdChip id={row.source_a_record_id} />
+                    <IdChip id={row.source_b_record_id} />
+                  </div>
                 </Td>
-                <Td className="whitespace-nowrap font-mono text-2xs text-ink-muted">
-                  {orDash(row.resolution_id)}
+                <Td align="right" className="font-mono tabular-nums text-2xs">
+                  v{row.reconciliation_version}
                 </Td>
-                <Td className="whitespace-nowrap font-mono text-2xs text-ink-muted">
-                  {orDash(row.source_a_record_id)}
-                </Td>
-                <Td className="whitespace-nowrap font-mono text-2xs text-ink-muted">
-                  {orDash(row.source_b_record_id)}
-                </Td>
-                <Td className="whitespace-nowrap font-mono text-2xs text-ink-muted">
-                  {orDash(row.rule_version)}
+                <Td className="whitespace-nowrap">
+                  {row.supersedes_reconciliation_id ? (
+                    <IdChip id={row.supersedes_reconciliation_id} />
+                  ) : (
+                    <span className="text-ink-subtle">—</span>
+                  )}
                 </Td>
               </Tr>
             ))
           )}
         </TBody>
       </Table>
-
-      <ContractCalls operations={CONTRACT_OPERATIONS} />
     </>
   );
 }

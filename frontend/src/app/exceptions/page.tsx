@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { BatchLookupForm } from "@/components/batch-lookup-form";
-import { ContractCalls } from "@/components/contract-calls";
 import { DataError } from "@/components/data-error";
+import { IdChip } from "@/components/id-chip";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
 import { SummaryBand, type Stat } from "@/components/summary-band";
@@ -14,19 +13,11 @@ import { loadData } from "@/lib/api/server";
 import { formatCount, humanizeEnum } from "@/lib/format";
 import { route } from "@/lib/routes";
 
-export const metadata: Metadata = { title: "Discrepancies — LEDGER" };
+export const metadata: Metadata = { title: "Exceptions — LEDGER" };
 
-const CONTRACT_OPERATIONS = [
-  "listDiscrepancies",
-  "getDiscrepancy",
-  "getReconciliation",
-  "getAuditTrail",
-  "resolveDiscrepancy",
-] as const;
-
-const TITLE = "Discrepancies";
+const TITLE = "Exceptions";
 const DESCRIPTION =
-  "Every reconciliation that did not resolve automatically. A discrepancy is a recorded fact, not a failure: it stays open until an authorized operator resolves it, and the resolution never replaces the original decision.";
+  "Reconciliation decisions that require operator review. An exception stays open until resolved; the resolution creates a new decision version and the original is preserved.";
 
 type SortKey = "discrepancy_id" | "state";
 
@@ -34,7 +25,8 @@ function parseSort(value: string | undefined): SortKey {
   return value === "state" ? "state" : "discrepancy_id";
 }
 
-export default async function DiscrepanciesPage({
+
+export default async function ExceptionsPage({
   searchParams,
 }: {
   searchParams: Promise<{ state?: string; sort?: string; dir?: string; batch_id?: string }>;
@@ -53,14 +45,7 @@ export default async function DiscrepanciesPage({
   });
 
   if (!discrepancies.ok) {
-    return (
-      <DataError
-        title={TITLE}
-        description={DESCRIPTION}
-        error={discrepancies.error}
-        operations={CONTRACT_OPERATIONS}
-      />
-    );
+    return <DataError title={TITLE} description={DESCRIPTION} error={discrepancies.error} />;
   }
 
   const counts = DISCREPANCY_STATES.map((state) => ({
@@ -75,12 +60,16 @@ export default async function DiscrepanciesPage({
       return direction === "desc" ? -cmp : cmp;
     });
 
+  const openCount = counts.find((c) => c.state === "OPEN")?.count ?? 0;
   const stats: readonly Stat[] = [
-    { label: "Discrepancies in scope", value: formatCount(discrepancies.data.length) },
-    ...counts.map((entry) => ({
-      label: humanizeEnum(entry.state),
-      value: formatCount(entry.count),
-    })),
+    { label: "Total exceptions", value: formatCount(discrepancies.data.length) },
+    { label: "Open", value: formatCount(openCount), detail: "need action" },
+    ...counts
+      .filter((c) => c.state !== "OPEN")
+      .map((entry) => ({
+        label: humanizeEnum(entry.state),
+        value: formatCount(entry.count),
+      })),
   ];
 
   const search = new URLSearchParams();
@@ -91,78 +80,82 @@ export default async function DiscrepanciesPage({
     next.set("sort", key);
     next.set("dir", sortKey === key && direction === "asc" ? "desc" : "asc");
     if (stateFilter) next.set("state", stateFilter);
-    return route(`/discrepancies?${next.toString()}`);
+    return route(`/exceptions?${next.toString()}`);
   };
 
   const filterHref = (state?: string) => {
     const next = new URLSearchParams(search);
     if (state) next.set("state", state);
     const query = next.toString();
-    return query ? route(`/discrepancies?${query}`) : route("/discrepancies");
+    return query ? route(`/exceptions?${query}`) : route("/exceptions");
   };
 
   return (
     <>
       <PageHeader title={TITLE} description={DESCRIPTION} />
 
-      <BatchLookupForm action="/discrepancies" defaultBatchId={batchId} />
-      <p className="mb-4 text-2xs text-ink-subtle">
-        {batchId ? (
-          <>
-            Filtered to batch <span className="font-mono">{batchId}</span>.{" "}
-            <Link href={route("/discrepancies")}>Show all batches</Link>
-          </>
-        ) : (
-          "Showing every batch. Filter by a batch id returned from the ingest screen."
-        )}
-      </p>
+      {batchId ? (
+        <p className="mb-4 text-2xs text-ink-subtle">
+          Filtered to batch <span className="font-mono">{batchId}</span>.{" "}
+          <Link href={route("/exceptions")}>Show all</Link>
+        </p>
+      ) : null}
 
       <SummaryBand stats={stats} columns={5} />
 
-      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-2xs">
-        <span className="uppercase tracking-wide text-ink-muted">Status</span>
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs">
+        <span className="uppercase tracking-wide text-ink-muted">Filter</span>
         <Link
           href={filterHref()}
-          className={stateFilter ? "font-mono" : "font-mono font-semibold text-ink no-underline"}
+          className={
+            !stateFilter
+              ? "rounded-control bg-surface-sunken px-2 py-0.5 font-medium text-ink no-underline"
+              : "px-2 py-0.5 text-ink-muted"
+          }
         >
-          all
+          All
         </Link>
         {DISCREPANCY_STATES.map((state) => (
           <Link
             key={state}
             href={filterHref(state)}
             className={
-              stateFilter === state ? "font-mono font-semibold text-ink no-underline" : "font-mono"
+              stateFilter === state
+                ? "rounded-control bg-surface-sunken px-2 py-0.5 font-medium text-ink no-underline"
+                : "px-2 py-0.5 text-ink-muted"
             }
           >
-            {state}
+            {humanizeEnum(state)}
           </Link>
         ))}
       </div>
 
-      <Table caption="Discrepancy queue">
+      <Table caption="Exception queue">
         <THead>
           <Tr>
             <Th>
               <Link href={sortHref("discrepancy_id")} className="no-underline">
-                Discrepancy {sortKey === "discrepancy_id" ? (direction === "asc" ? "↑" : "↓") : ""}
+                Exception {sortKey === "discrepancy_id" ? (direction === "asc" ? "↑" : "↓") : ""}
               </Link>
             </Th>
-            <Th>Reconciliation</Th>
+            <Th>Batch</Th>
             <Th>Reason</Th>
             <Th>
               <Link href={sortHref("state")} className="no-underline">
                 Status {sortKey === "state" ? (direction === "asc" ? "↑" : "↓") : ""}
               </Link>
             </Th>
+            <Th>Age</Th>
             <Th>Action</Th>
           </Tr>
         </THead>
         <TBody>
           {rows.length === 0 ? (
             <Tr>
-              <Td colSpan={5} className="py-6 text-center text-sm text-ink-muted">
-                No discrepancies in this scope.
+              <Td colSpan={6} className="py-6 text-center text-sm text-ink-muted">
+                {stateFilter
+                  ? `No ${humanizeEnum(stateFilter).toLowerCase()} exceptions.`
+                  : "No exceptions in this scope."}
               </Td>
             </Tr>
           ) : (
@@ -170,44 +163,37 @@ export default async function DiscrepanciesPage({
               <Tr key={row.discrepancy_id} accent={DISCREPANCY_STATE_TONE[row.state]}>
                 <Td className="whitespace-nowrap">
                   <Link
-                    href={route(`/discrepancies/${encodeURIComponent(row.discrepancy_id)}`)}
-                    className="font-mono text-2xs"
+                    href={route(`/exceptions/${encodeURIComponent(row.discrepancy_id)}`)}
+                    className="text-2xs text-accent"
                   >
-                    {row.discrepancy_id}
+                    <IdChip id={row.discrepancy_id} />
                   </Link>
                 </Td>
                 <Td className="whitespace-nowrap">
-                  <Link
-                    href={route(`/reconciliation?batch_id=${encodeURIComponent(batchId ?? "")}`)}
-                    className="font-mono text-2xs"
-                  >
-                    {row.reconciliation_id}
-                  </Link>
+                  <IdChip id={row.reconciliation_id} />
                 </Td>
-                <Td className="max-w-[460px] text-2xs text-ink-muted">{row.reason}</Td>
+                <Td className="max-w-[400px] text-2xs text-ink-muted">{row.reason}</Td>
                 <Td>
                   <StatusPill tone={DISCREPANCY_STATE_TONE[row.state]}>
                     {humanizeEnum(row.state)}
                   </StatusPill>
                 </Td>
+                <Td className="whitespace-nowrap text-2xs text-ink-muted">
+                  {humanizeEnum(row.state)}
+                </Td>
                 <Td className="whitespace-nowrap text-2xs">
-                  {row.state === "OPEN" ? (
-                    <Link href={route(`/discrepancies/${encodeURIComponent(row.discrepancy_id)}`)}>
-                      Resolve
-                    </Link>
-                  ) : (
-                    <Link href={route(`/discrepancies/${encodeURIComponent(row.discrepancy_id)}`)}>
-                      View
-                    </Link>
-                  )}
+                  <Link
+                    href={route(`/exceptions/${encodeURIComponent(row.discrepancy_id)}`)}
+                    className={row.state === "OPEN" ? "font-medium text-accent" : "text-ink-muted"}
+                  >
+                    {row.state === "OPEN" ? "Resolve →" : "View"}
+                  </Link>
                 </Td>
               </Tr>
             ))
           )}
         </TBody>
       </Table>
-
-      <ContractCalls operations={CONTRACT_OPERATIONS} />
     </>
   );
 }

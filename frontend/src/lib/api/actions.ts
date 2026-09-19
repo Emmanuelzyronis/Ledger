@@ -85,7 +85,7 @@ export async function registerSourceAction(
       active: true,
     },
   });
-  if (result.ok) revalidatePath("/ingest");
+  if (result.ok) revalidatePath("/batches");
   return result;
 }
 
@@ -100,7 +100,7 @@ export async function createBatchAction(
       schema_version: text(formData, "schema_version"),
     },
   });
-  if (result.ok) revalidatePath("/ingest");
+  if (result.ok) revalidatePath("/batches");
   return result;
 }
 
@@ -118,7 +118,7 @@ export async function ingestRecordAction(
     body: idempotencyKey.length > 0 ? { payload, idempotency_key: idempotencyKey } : { payload },
   });
   if (result.ok) {
-    revalidatePath("/ingest");
+    revalidatePath("/batches");
     revalidatePath("/reconciliation");
   }
   return result;
@@ -144,9 +144,10 @@ export async function resolveDiscrepancyAction(
     body,
   });
   if (result.ok) {
-    revalidatePath(`/discrepancies/${discrepancyId}`);
-    revalidatePath("/discrepancies");
+    revalidatePath(`/exceptions/${discrepancyId}`);
+    revalidatePath("/exceptions");
     revalidatePath("/reconciliation");
+    revalidatePath("/");
   }
   return result;
 }

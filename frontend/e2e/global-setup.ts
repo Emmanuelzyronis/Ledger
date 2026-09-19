@@ -29,7 +29,9 @@ async function waitFor(url: string, timeoutMs = 90_000): Promise<void> {
 }
 
 function stop(child: ChildProcess | null): void {
-  if (child && !child.killed) child.kill("SIGTERM");
+  if (!child) return;
+  // SIGKILL ensures the process exits even if it ignores SIGTERM.
+  try { child.kill("SIGKILL"); } catch {}
 }
 
 export default async function globalSetup(): Promise<() => void> {

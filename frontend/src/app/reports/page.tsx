@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { BatchLookupForm } from "@/components/batch-lookup-form";
-import { ContractCalls } from "@/components/contract-calls";
 import { DataError } from "@/components/data-error";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
@@ -15,8 +14,6 @@ import { formatCount, formatTimestamp, percent } from "@/lib/format";
 import { route } from "@/lib/routes";
 
 export const metadata: Metadata = { title: "Reports — LEDGER" };
-
-const CONTRACT_OPERATIONS = ["getReport", "exportData"] as const;
 
 const TITLE = "Reports";
 const DESCRIPTION =
@@ -31,14 +28,7 @@ export default async function ReportsPage({
   const report = await loadData("getReport", { query: batchId ? { batch_id: batchId } : {} });
 
   if (!report.ok) {
-    return (
-      <DataError
-        title={TITLE}
-        description={DESCRIPTION}
-        error={report.error}
-        operations={CONTRACT_OPERATIONS}
-      />
-    );
+    return <DataError title={TITLE} description={DESCRIPTION} error={report.error} />;
   }
 
   const data = report.data;
@@ -46,22 +36,30 @@ export default async function ReportsPage({
     ? `/reports/export?batch_id=${encodeURIComponent(batchId)}`
     : "/reports/export";
 
+  const matchedCount = data.current_outcomes.MATCHED ?? 0;
+  const matchRate =
+    data.current_reconciliation_count > 0
+      ? percent(matchedCount, data.current_reconciliation_count)
+      : "—";
+
   const stats: readonly Stat[] = [
-    { label: "Batch", value: data.batch_id ?? "all", detail: "batch_id filter" },
+    { label: "Match rate", value: matchRate, detail: "current versions" },
     {
-      label: "Reconciliation decisions",
-      value: formatCount(data.reconciliation_count),
-      detail: "all versions",
+      label: "Current decisions",
+      value: formatCount(data.current_reconciliation_count),
     },
-    { label: "Current versions", value: formatCount(data.current_reconciliation_count) },
-    { label: "Discrepancies", value: formatCount(data.discrepancy_count) },
+    {
+      label: "All versions",
+      value: formatCount(data.reconciliation_count),
+      detail: "incl. superseded",
+    },
+    { label: "Open exceptions", value: formatCount(data.discrepancy_count) },
     {
       label: "Source events",
       value: formatCount(data.source_watermark.event_count),
-      detail: "watermark count",
     },
     {
-      label: "Watermark time",
+      label: "Watermark",
       value: data.source_watermark.timestamp
         ? formatTimestamp(data.source_watermark.timestamp)
         : "—",
@@ -116,12 +114,12 @@ export default async function ReportsPage({
                 </Td>
                 <Td className="w-[200px]">
                   <div className="flex items-center gap-3">
-                    <span className="w-10 shrink-0 text-right font-mono text-2xs tabular-nums text-ink-muted">
+                    <span className="w-12 shrink-0 text-right font-mono text-2xs tabular-nums text-ink-muted">
                       {percent(current, data.current_reconciliation_count)}
                     </span>
-                    <span className="block h-1 w-full bg-surface-sunken">
+                    <span className="block h-6 w-full rounded-sm bg-surface-sunken">
                       <span
-                        className={`block h-1 ${TONE_BAR_CLASS[OUTCOME_TONE[outcome]]}`}
+                        className={`block h-6 rounded-sm ${TONE_BAR_CLASS[OUTCOME_TONE[outcome]]}`}
                         style={{ width: `${share.toFixed(1)}%` }}
                       />
                     </span>
@@ -171,7 +169,6 @@ export default async function ReportsPage({
         </div>
       </section>
 
-      <ContractCalls operations={CONTRACT_OPERATIONS} />
     </>
   );
 }

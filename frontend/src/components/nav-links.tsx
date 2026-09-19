@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { route } from "@/lib/routes";
 
 const LINKS = [
-  { href: "/ingest", label: "Ingest Status" },
+  { href: "/batches", label: "Batches" },
   { href: "/reconciliation", label: "Reconciliation" },
-  { href: "/discrepancies", label: "Discrepancies" },
+  { href: "/exceptions", label: "Exceptions" },
   { href: "/reports", label: "Reports" },
-] as const;
+] satisfies { href: string; label: string }[];
 
 export function NavLinks() {
   const pathname = usePathname();
@@ -19,7 +20,7 @@ export function NavLinks() {
         return (
           <Link
             key={link.href}
-            href={link.href}
+            href={route(link.href)}
             aria-current={active ? "page" : undefined}
             className={
               active
