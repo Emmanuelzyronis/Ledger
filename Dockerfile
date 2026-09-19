@@ -35,7 +35,6 @@ COPY docs/openapi ./docs/openapi
 COPY VERSION ./
 USER ledger
 EXPOSE 8080
-VOLUME ["/var/lib/ledger"]
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
   CMD python -c "import json,urllib.request;print(json.load(urllib.request.urlopen('http://127.0.0.1:8080/v1/health'))['data']['status'])" || exit 1
 ENTRYPOINT ["python", "-m", "ledger"]
