@@ -196,7 +196,8 @@ Do not use naive O(n²) all-pairs matching as the normal strategy.
 Performance claims must state dataset size, environment, method, and result.
 
 Layer 13 benchmark evidence is produced by `benchmarks/run_performance.py` and stored in
-`evidence/performance-baseline.json`; numerical SLOs remain deferred by Architecture D-009.
+`evidence/performance-baseline.json`; numerical SLOs were resolved by Architecture D-009
+against the Epic 8 staging rehearsal and are recorded in `docs/staging.md`.
 
 Layer 14 failure-verification evidence is produced by `tests/test_failure_verification.py`
 and documented in `docs/failure-verification.md`.
@@ -209,10 +210,6 @@ Epic 5 database-operations evidence is produced by
 `PYTHONPATH=src python3 -m ledger.ops drill` (seeded with
 `product_proof/seed_database.py`), covered by `tests/test_database_operations.py`, and
 documented in `docs/database-operations.md`.
-
-Epic 6 observability evidence is produced by
-`PYTHONPATH=src python3 observability/run_observability_proof.py`, covered by
-`tests/test_observability.py`, and documented in `docs/observability.md`.
 
 Epic 8 staging evidence is produced by
 `PYTHONPATH=src python3 staging/run_staging_proof.py` (`make staging-proof`),

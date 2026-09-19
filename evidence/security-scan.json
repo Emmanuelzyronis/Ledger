@@ -1,15 +1,15 @@
 {
   "epic": "EMM-83",
   "findings": 0,
-  "generated_at": "2026-09-11T22:28:29Z",
+  "generated_at": "2026-09-12T00:18:26Z",
   "ok": true,
   "problems": [],
-  "require_tools": false,
+  "require_tools": true,
   "scanners": [
     {
       "error": null,
       "exit_code": 0,
-      "files_scanned": 5641,
+      "files_scanned": 5655,
       "findings": 0,
       "status": "ran",
       "tool": "bandit"
@@ -26,8 +26,11 @@
       "vulnerabilities": 0
     },
     {
-      "reason": "trivy is not installed",
-      "status": "skipped",
+      "error": null,
+      "exit_code": 0,
+      "findings_detail": [],
+      "high_or_critical_findings": 0,
+      "status": "ran",
       "tool": "trivy"
     }
   ],

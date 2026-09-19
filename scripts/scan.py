@@ -88,12 +88,28 @@ def trivy() -> dict:
                                 "--skip-dirs", "frontend/node_modules", "--skip-dirs", ".git", "."])
     payload = _json_or_none(stdout)
     findings = 0
+    details: list[dict] = []
     if payload:
         for result in payload.get("Results", []) or []:
-            findings += len(result.get("Vulnerabilities", []) or [])
-            findings += len(result.get("Secrets", []) or [])
-            findings += len(result.get("Misconfigurations", []) or [])
+            target = result.get("Target")
+            for kind, key in (("vulnerability", "Vulnerabilities"), ("secret", "Secrets"),
+                              ("misconfiguration", "Misconfigurations")):
+                for entry in result.get(key, []) or []:
+                    findings += 1
+                    details.append({
+                        "kind": kind,
+                        "target": target,
+                        "id": entry.get("VulnerabilityID") or entry.get("RuleID") or entry.get("ID"),
+                        "package": entry.get("PkgName"),
+                        "installed": entry.get("InstalledVersion"),
+                        "fixed_in": entry.get("FixedVersion"),
+                        "severity": entry.get("Severity"),
+                        "title": (entry.get("Title") or entry.get("Message") or "")[:160],
+                    })
+    # Findings are recorded, not just counted: a failing gate must tell the
+    # operator what to fix.
     return {"tool": "trivy", "status": "ran", "exit_code": code, "high_or_critical_findings": findings,
+            "findings_detail": details[:25],
             "error": None if payload is not None else stderr.strip()[:400]}
 
 
