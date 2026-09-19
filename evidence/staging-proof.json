@@ -14,41 +14,41 @@
     "python": "3.12.3"
   },
   "epic": "EMM-84",
-  "generated_at": "2026-09-11T22:32:45.898341+00:00",
+  "generated_at": "2026-09-19T22:04:25.364618+00:00",
   "ingest": {
     "source_a": {
       "accepted": 540,
       "duplicate_submissions": 0,
       "records": 540,
-      "requests_per_second": 214.29,
-      "seconds": 2.52
+      "requests_per_second": 185.96,
+      "seconds": 2.9039
     },
     "source_b": {
       "accepted": 480,
       "duplicate_submissions": 0,
       "records": 480,
-      "requests_per_second": 173.59,
-      "seconds": 2.7651
+      "requests_per_second": 188.72,
+      "seconds": 2.5435
     }
   },
   "late_arrival": {
     "after": {
-      "batch_id": "batch-af3a4baf29f243d1a0549b37ba4341ec",
+      "batch_id": "batch-7e29375c0f624d0d910d3b182e91414e",
       "outcome": "MATCHED",
       "reconciliation_id": "reconciliation:964f288fa591cf1b60626409b251a2b0eb92d7bbc620acc47734c4d2bd642d74",
       "reconciliation_version": 2,
       "supersedes_reconciliation_id": "reconciliation:0894ca10bd6adf3fc0ad8aa57159e5a93c37f4c78e85e1d0d2c6b13fb2c1593e"
     },
     "batches": {
-      "source_a": "batch-af3a4baf29f243d1a0549b37ba4341ec",
-      "source_b": "batch-ae5cd3c0546942b4bbf386aa3438daaf",
+      "source_a": "batch-7e29375c0f624d0d910d3b182e91414e",
+      "source_b": "batch-4947081d4fd24b4d8aeb11d9a9b34d3b",
       "states": [
         "COMPLETED",
         "COMPLETED"
       ]
     },
     "before": {
-      "batch_id": "batch-af3a4baf29f243d1a0549b37ba4341ec",
+      "batch_id": "batch-7e29375c0f624d0d910d3b182e91414e",
       "outcome": "UNMATCHED_A",
       "reconciliation_id": "reconciliation:0894ca10bd6adf3fc0ad8aa57159e5a93c37f4c78e85e1d0d2c6b13fb2c1593e",
       "reconciliation_version": 1,
@@ -60,16 +60,16 @@
   "load": {
     "errors": 0,
     "latency_ms": {
-      "max": 21.053,
-      "mean": 4.232,
-      "p50": 3.26,
-      "p95": 11.538,
-      "p99": 15.872
+      "max": 1052.171,
+      "mean": 10.956,
+      "p50": 5.421,
+      "p95": 11.833,
+      "p99": 18.125
     },
     "profile": "8 concurrent clients x 25 requests",
     "requests": 200,
-    "requests_per_second": 1625.71,
-    "seconds": 0.123
+    "requests_per_second": 177.59,
+    "seconds": 1.1262
   },
   "observability": {
     "alerts_fired_during_load": [],
@@ -100,8 +100,8 @@
         "accepted": 400,
         "duplicate_submissions": 0,
         "records": 400,
-        "requests_per_second": 203.85,
-        "seconds": 1.9622
+        "requests_per_second": 176.79,
+        "seconds": 2.2626
       },
       "records": 400,
       "state": "COMPLETED"
@@ -116,25 +116,25 @@
       "UNMATCHED_B": 60
     },
     "outcome_mismatches": 0,
-    "processing_seconds": 22.1784,
+    "processing_seconds": 13.9277,
     "reconciliation_rows": 1180,
     "records_checked": 1020,
-    "records_per_second": 64.03,
+    "records_per_second": 101.96,
     "records_processed": 1420,
     "states": {
-      "batch-4b9f5adb03d74acba2041c8b6a8ccc59": "COMPLETED",
-      "batch-ace2d19e5e124d32810cf6f7380140d6": "COMPLETED",
-      "batch-af75b6f16f37404fb092e282bc4b852f": "COMPLETED"
+      "batch-02d8b75ed48d44a2beb76c2feb9f090f": "COMPLETED",
+      "batch-3eaed2d60e5d4d0382440b4d18cb12dc": "COMPLETED",
+      "batch-7ca47317ea2e4e2c835901c4aab3ebfe": "COMPLETED"
     }
   },
   "problems": [],
   "recovery": {
     "backup_bytes": 10354688,
-    "backup_seconds": 0.0579,
+    "backup_seconds": 0.0545,
     "objectives_met": true,
     "ok": true,
-    "restore_seconds": 0.0239,
-    "rto_margin_seconds": 1799.9182,
+    "restore_seconds": 0.0271,
+    "rto_margin_seconds": 1799.9184,
     "rto_target_seconds": 1800
   },
   "schema_version": 1,

@@ -2234,6 +2234,34 @@ Backup scheduling, offsite replication, backup-failure alerting, and staging
 restore rehearsals are deployment and observability obligations owned by the
 production-readiness epics that follow Epic 5.
 
+### D-015 — Superseded canonical versions in candidate generation (v1.0 acceptance) — RESOLVED
+
+**Issue (EMM-102):** Superseded canonical versions (created by source
+corrections) remain eligible for candidate generation and matching. A corrected
+source record can therefore produce additional immutable decision rows on
+re-evaluation, because the superseded canonical still appears in the candidate
+pool.
+
+**Decision:** Accept for v1.0. This is the single remaining deviation from an
+idealized correction workflow, and it is explicitly bounded:
+
+- Every additional row produced is immutable and linked through the supersession
+  chain; no data is mutated and no prior decision is silently discarded.
+- The LA-1 supersession rule (§28.1) governs which version becomes `current_state`
+  and is fully enforced regardless of how many additional rows are produced.
+- Excluding superseded canonical versions from candidate generation is a future
+  architecture change, not implied by LA-1, and requires a separate decision.
+
+The existing §28.1 "Known limitation" paragraph already documents this behavior.
+This decision record closes EMM-102 without a v1.0 code change.
+
+**Future revision gate:** if a corrected record reliably producing extra decision
+rows causes operational or compliance problems at production scale, the fix is a
+candidate-generation filter (`ledger.candidates`) that excludes canonical
+transactions superseded by a later canonical version for the same
+`(source_id, source_record_id)`. That filter does not change any reconciliation
+invariant and can be introduced as a patch release.
+
 ---
 
 # 52. Recommended Implementation Layers

@@ -5,12 +5,12 @@
     "python": "3.12.3",
     "sqlite": "3.45.1"
   },
-  "generated_at": "2026-09-12T00:15:23.180246+00:00",
+  "generated_at": "2026-09-19T22:03:15.271650+00:00",
   "measurements": {
     "backup_bytes": 315392,
-    "backup_seconds": 0.0277,
-    "drill_seconds": 0.0731,
-    "restore_seconds": 0.0353
+    "backup_seconds": 0.0282,
+    "drill_seconds": 0.0531,
+    "restore_seconds": 0.0101
   },
   "method": "VACUUM INTO snapshot -> read-only verify -> restore copy -> re-verify",
   "results": {
@@ -77,13 +77,13 @@
   "rpo_rto": {
     "conformance": {
       "rpo_bounded_by_approved_cadence": true,
-      "rto_margin_seconds": 1799.937,
+      "rto_margin_seconds": 1799.9617,
       "rto_seconds_within_target": true
     },
     "observed": {
-      "backup_seconds": 0.0277,
-      "measured_recovery_seconds": 0.063,
-      "restore_seconds": 0.0353
+      "backup_seconds": 0.0282,
+      "measured_recovery_seconds": 0.0383,
+      "restore_seconds": 0.0101
     },
     "policy": {
       "backup_cadence": "verified full snapshot every 15 minutes local (24h retention) plus daily offsite (30d retention)",

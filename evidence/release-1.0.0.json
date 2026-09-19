@@ -1,9 +1,9 @@
 {
   "artifact": "dist/ledger-1.0.0.tar.gz",
-  "bytes": 383280,
+  "bytes": 395148,
   "epic": "EMM-83",
-  "files": 197,
-  "generated_at": "2026-09-11T22:32:50Z",
+  "files": 198,
+  "generated_at": "2026-09-19T22:01:54Z",
   "manifest": {
     "files": [
       {
@@ -22,9 +22,9 @@
         "sha256": "2bda50d9e74f7e08a738fd2e5ede2bc5fdbb757c1d0ad5cbbb48826b6a3200f5"
       },
       {
-        "bytes": 10181,
+        "bytes": 10056,
         "path": "AGENTS.md",
-        "sha256": "267b0f406c17a24639470906fcbaddd7275f1966d0d14bf14299073093fc785b"
+        "sha256": "3568e0ba138cc71819daa6b1a6bbddda58b93e6c8112f5a59b0a8f78682955b0"
       },
       {
         "bytes": 84808,
@@ -254,7 +254,7 @@
       {
         "bytes": 2892,
         "path": "evidence/database-operations.json",
-        "sha256": "bc06526d21b9e8631c0760a0bab65b02ee6b07386021f9e90636511865aea84e"
+        "sha256": "5b6816a1c63d850c8c177c4d8fd68cb11abbf55dcdc2977e66ea7995da0e18dd"
       },
       {
         "bytes": 4811,
@@ -262,9 +262,9 @@
         "sha256": "b9ba1a5f492f8ac5e4647eaf459e6f37a5f0182585b7f78c69dc075ee87e2e6f"
       },
       {
-        "bytes": 7228,
+        "bytes": 7220,
         "path": "evidence/performance-baseline.json",
-        "sha256": "b555f5563ecfb7fb04ad0b47d9d46bd8b3ef1a51704792f42f4600cc72f97ac2"
+        "sha256": "a27924df5db32fe289ed89f3b6af58030712d3c3ad5c4a1977a5c9488521c117"
       },
       {
         "bytes": 6682,
@@ -274,12 +274,17 @@
       {
         "bytes": 41524,
         "path": "evidence/product-proof.json",
-        "sha256": "fabdef52f556eff89f3a8a0d7e9978031b78f06f164687448c72eb75bf07c5ba"
+        "sha256": "799dd89b5dba1a98b4ce59a2d36ba24f2d4f408b2a87a9e8866c72e05e313fdd"
       },
       {
-        "bytes": 666,
+        "bytes": 34575,
+        "path": "evidence/release-1.0.0.json",
+        "sha256": "6d91735c1cbb1e13625865f237cad51996ef1d11520af39653752552ddaff7ec"
+      },
+      {
+        "bytes": 730,
         "path": "evidence/security-scan.json",
-        "sha256": "34cc4f59c01f18d6c506538d57a4403e84e31a591b71821913c4db91d8b78326"
+        "sha256": "bf64d9bed04bf8cbf649f74a8d89fcb8dba462019b9a88c921fa67cca3e88363"
       },
       {
         "bytes": 4345,
@@ -342,14 +347,14 @@
         "sha256": "d6c9b151ba5386217946fcf2e871273ac703ce30d42605b3779ec19f726943b3"
       },
       {
-        "bytes": 281507,
+        "bytes": 281625,
         "path": "frontend/package-lock.json",
-        "sha256": "32ec6cd5f2cbb7f42cba1fb0df222efc2ccb66363eb5a28a907c8b9de7f79c83"
+        "sha256": "a3138d17d6f779a42f27ae719e3eb46fbc6b16c8950c95b204f39e001662ca49"
       },
       {
-        "bytes": 1262,
+        "bytes": 1332,
         "path": "frontend/package.json",
-        "sha256": "03840a5f04c86dc5595acd2abcdd83033f1da8eca8c4294b749f7aa3a73183ca"
+        "sha256": "b20d15723fbc7b0e47b68f68d458054f2029e7fc675f0d3b9bc5069dde148195"
       },
       {
         "bytes": 572,
@@ -722,9 +727,9 @@
         "sha256": "a8646efd3c38af59c530e0cf860dd0310b27d1862cb8732f44c3771dcbaeba7b"
       },
       {
-        "bytes": 6362,
+        "bytes": 7216,
         "path": "scripts/scan.py",
-        "sha256": "f147f35ee55f4268e0e91e222a9999378ab084e6835e72104fe110296a778b31"
+        "sha256": "573ee4f78effd07acdacc6129ea06384f0490959e9265528cb694cebffd05853"
       },
       {
         "bytes": 1818,
@@ -992,14 +997,14 @@
         "sha256": "32d0b100288cba0f131bfef52909e9031e9981667c9cea1d26ea6cd4016c41e3"
       }
     ],
-    "generated_at": "2026-09-11T22:32:50Z",
-    "revision": "7679379d1a8da8919762dabd8975a9d4eb848b8d",
+    "generated_at": "2026-09-19T22:01:54Z",
+    "revision": "f0a4581aa45afbfc8bff910a90ea63878d63d0ca",
     "schema_version": 1,
     "version": "1.0.0"
   },
-  "revision": "7679379d1a8da8919762dabd8975a9d4eb848b8d",
+  "revision": "f0a4581aa45afbfc8bff910a90ea63878d63d0ca",
   "schema_version": 1,
   "secret_scan": "clean",
-  "sha256": "3be93395f9a8f8970104c0a5493e81ce6ae54262a58db0e085dd738fcbe89412",
+  "sha256": "fd57b91bdba65fb0caede03fb52718abaf70190019b68faef27bfe120a48bacd",
   "version": "1.0.0"
 }
