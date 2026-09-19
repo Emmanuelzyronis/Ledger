@@ -23,6 +23,7 @@ RUN python -m venv /opt/venv \
 
 FROM ${PYTHON_IMAGE} AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH=/opt/venv/bin:$PATH \
+    PYTHONPATH=/app/src \
     LEDGER_ENV=production LEDGER_HOST=0.0.0.0 LEDGER_PORT=8080 \
     LEDGER_DATABASE_PATH=/var/lib/ledger/ledger.sqlite3
 RUN useradd --system --uid 10001 --home /var/lib/ledger --create-home ledger \
