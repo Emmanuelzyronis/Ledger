@@ -139,6 +139,12 @@ class LedgerAPI:
             self._require_role(principal, "reconciliation_operator")
             data = self._object(body, ("resolution_type", "reason"))
             return self.resolution.resolve(parts[1], ResolutionType(data["resolution_type"]), actor="reconciliation_operator", reason=data["reason"], evidence=data.get("evidence"), rule_version=data.get("rule_version"))
+        if method == "POST" and parts == ["dev", "seed"]:
+            import os
+            if os.environ.get("LEDGER_ALLOW_SEED") != "true":
+                raise APIError(404, "not_found", "endpoint does not exist")
+            self._require_role(principal, "reconciliation_operator")
+            return self._run_seed()
         raise APIError(404, "not_found", "endpoint does not exist")
 
     @staticmethod
@@ -215,6 +221,57 @@ class LedgerAPI:
         if hasattr(value, "value"): return value.value
         if hasattr(value, "isoformat"): return value.isoformat()
         return value
+
+
+    def _run_seed(self) -> dict[str, Any]:
+        from datetime import datetime, timezone
+        from .pipeline import process_batches, select_batches
+
+        now = datetime(2026, 9, 8, 12, 0, tzinfo=timezone.utc)
+
+        PORTFOLIO_A = {
+            "A001": {"record_id": "A001", "occurred_at": "2026-09-01", "amount": "100.00", "currency": "USD", "direction": "CREDIT", "transaction_reference": "TX-1001"},
+            "A002": {"record_id": "A002", "occurred_at": "2026-09-02", "amount": "250.00", "currency": "USD", "direction": "CREDIT", "transaction_reference": "TX-1002"},
+            "A003": {"record_id": "A003", "occurred_at": "2026-09-03", "amount": "500.00", "currency": "USD", "direction": "CREDIT"},
+            "A004": {"record_id": "A004", "occurred_at": "2026-09-03", "amount": "100.00", "currency": "USD", "direction": "CREDIT"},
+            "A005": {"record_id": "A005", "occurred_at": "2026-09-03", "amount": "100.00x", "currency": "USD", "direction": "CREDIT"},
+            "A006": {"record_id": "A006", "occurred_at": "2026-09-04", "amount": "600.00", "currency": "USD", "direction": "CREDIT", "transaction_reference": "TX-1006"},
+            "A007": {"record_id": "A007", "occurred_at": "2026-09-06", "amount": "800.00", "currency": "USD", "direction": "CREDIT", "transaction_reference": "TX-1007"},
+            "D-A1": {"record_id": "D-A1", "occurred_at": "2026-09-05", "amount": "300.00", "currency": "USD", "direction": "CREDIT"},
+            "D-A2": {"record_id": "D-A2", "occurred_at": "2026-09-05", "amount": "301.00", "currency": "USD", "direction": "CREDIT", "transaction_reference": "DUP-9"},
+        }
+        PORTFOLIO_B = {
+            "B991": {"id": "B991", "posted": "2026-09-01", "value": "100.00", "ccy": "USD", "side": "DEBIT", "reference": "TX-1001"},
+            "B992": {"id": "B992", "posted": "2026-09-02", "value": "250.00", "ccy": "USD", "side": "DEBIT", "reference": "TX-1002"},
+            "B993": {"id": "B993", "posted": "2026-09-03", "value": "750.00", "ccy": "USD", "side": "DEBIT"},
+            "B994": {"id": "B994", "posted": "2026-09-03", "value": "100.00", "ccy": "USD", "side": "DEBIT"},
+            "B995": {"id": "B995", "posted": "2026-09-03", "value": "100.00", "ccy": "USD", "side": "DEBIT"},
+            "B996": {"id": "B996", "posted": "2026-09-04", "value": "999.00", "ccy": "USD", "side": "DEBIT", "reference": "TX-1006"},
+            "B997": {"id": "B997", "posted": "2026-09-06", "value": "800.00", "ccy": "USD", "side": "CREDIT", "reference": "TX-1007"},
+            "D-B1": {"id": "D-B1", "posted": "2026-09-05", "value": "300.00", "ccy": "USD", "side": "DEBIT", "reference": "DUP-9"},
+        }
+
+        self.ingestion.register_source("source-a", "Source A", ["source_a.v1"])
+        self.ingestion.register_source("source-b", "Source B", ["source_b.v1"])
+
+        batch_a = self.ingestion.create_batch("source-a", "seed-ext-a", "source_a.v1", batch_id="seed-batch-a", received_at=now)
+        for key in sorted(PORTFOLIO_A):
+            self.ingestion.ingest(batch_a.batch_id, PORTFOLIO_A[key], idempotency_key=f"seed-a:{key}", accepted_at=now)
+
+        batch_b = self.ingestion.create_batch("source-b", "seed-ext-b", "source_b.v1", batch_id="seed-batch-b", received_at=now)
+        for key in sorted(PORTFOLIO_B):
+            self.ingestion.ingest(batch_b.batch_id, PORTFOLIO_B[key], idempotency_key=f"seed-b:{key}", accepted_at=now)
+
+        batch_ids = select_batches(self.database, batch_ids=[batch_a.batch_id, batch_b.batch_id])
+        runs = process_batches(self.database, batch_ids, evaluated_at=now)
+
+        report = self.reporting.report()
+        return {
+            "seeded": True,
+            "runs": [r.as_dict() for r in runs],
+            "reconciliation_count": report.get("current_reconciliation_count", 0),
+            "outcomes": report.get("current_outcomes", {}),
+        }
 
 
 def create_app(database: LedgerDatabase, **kwargs: Any) -> LedgerAPI:
