@@ -7,8 +7,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex h-12 w-full max-w-[1200px] items-center justify-between gap-6 px-4">
-          <div className="flex items-center gap-6">
+        <div className="mx-auto flex min-h-12 w-full max-w-[1200px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-2">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
             <Link
               href="/"
               className="text-2xs font-semibold uppercase tracking-[0.16em] text-ink no-underline hover:no-underline"

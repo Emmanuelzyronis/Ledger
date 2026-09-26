@@ -10,6 +10,37 @@
 
 ---
 
+## Demo
+
+> Interactive terminal demo — [view the full case study](https://emmanuelzyronis.vercel.app/work/ledger)
+
+```text
+$ python -m ledger reconcile --source-a bank_export.csv --source-b ledger_records.csv
+
+Loading sources...
+  bank_export.csv        847 transactions  $2,341,892.50
+  ledger_records.csv     851 transactions  $2,341,892.50
+
+Matching by: (reference_id, amount, date ±2d)
+.......................................................................  847/847
+
+RESULT
+──────────────────────────────────────────
+  Matched:       843  (99.5%)
+  Unmatched A:     4
+  Unmatched B:     8
+  Net variance:   $0.00
+
+Unmatched in bank_export.csv:
+  #0041  2026-09-12  $1,250.00  REF:INV-8821  → no counterpart
+  #0187  2026-09-18  $  450.00  REF:INV-9103  → no counterpart
+
+Resolutions → ledger_output/reconciliation-2026-09-25.json
+Audit trail  → ledger_output/audit-2026-09-25.jsonl
+```
+
+---
+
 ## What is LEDGER?
 
 LEDGER reconciles independently produced financial transaction records from two counterparties (Source A and Source B). Given the same inputs, it always produces the same outcome — every decision is deterministic, traceable to the rules that produced it, and preserved forever as immutable evidence.

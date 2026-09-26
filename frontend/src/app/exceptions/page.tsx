@@ -145,14 +145,13 @@ export default async function ExceptionsPage({
                 Status {sortKey === "state" ? (direction === "asc" ? "↑" : "↓") : ""}
               </Link>
             </Th>
-            <Th>Age</Th>
             <Th>Action</Th>
           </Tr>
         </THead>
         <TBody>
           {rows.length === 0 ? (
             <Tr>
-              <Td colSpan={6} className="py-6 text-center text-sm text-ink-muted">
+              <Td colSpan={5} className="py-6 text-center text-sm text-ink-muted">
                 {stateFilter
                   ? `No ${humanizeEnum(stateFilter).toLowerCase()} exceptions.`
                   : "No exceptions in this scope."}
@@ -177,9 +176,6 @@ export default async function ExceptionsPage({
                   <StatusPill tone={DISCREPANCY_STATE_TONE[row.state]}>
                     {humanizeEnum(row.state)}
                   </StatusPill>
-                </Td>
-                <Td className="whitespace-nowrap text-2xs text-ink-muted">
-                  {humanizeEnum(row.state)}
                 </Td>
                 <Td className="whitespace-nowrap text-2xs">
                   <Link

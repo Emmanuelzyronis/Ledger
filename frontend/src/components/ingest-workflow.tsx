@@ -127,7 +127,7 @@ export function IngestWorkflow({ batchId }: { batchId?: string }) {
             <p>
               <span className="font-mono">{batch.batch_id}</span> is{" "}
               <span className="font-mono">{batch.state}</span>.{" "}
-              <Link href={route(`/ingest?batch_id=${encodeURIComponent(batch.batch_id)}`)}>
+              <Link href={route(`/batches?batch_id=${encodeURIComponent(batch.batch_id)}`)}>
                 Show its counters
               </Link>
             </p>
